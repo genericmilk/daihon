@@ -1,0 +1,6 @@
+Place your app icon assets here. For runtime icon setting, the app will try:
+- AppIcon.png (512x512 or 1024x1024 recommended)
+- Daihon.icns
+If both exist, AppIcon.png takes precedence.
+
+Note: For proper distribution, convert your Icon Composer bundle (Daihon.icon) into an .icns and set it in an .app bundle or Info.plist when packaging. For SwiftPM run targets, we set the icon at runtime.

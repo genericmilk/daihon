@@ -73,7 +73,7 @@ struct PreferencesView: View {
             state.projects = draftProjects
             state.save()
         }
-        state.showingPreferences = false
+        PreferencesWindowController.shared.close()
     }
 }
 

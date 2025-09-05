@@ -7,27 +7,42 @@ struct MenuContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Project selector
+            if !state.projects.isEmpty {
+                Picker("Project", selection: Binding(
+                    get: { state.selectedProjectID ?? state.projects.first?.id ?? UUID() },
+                    set: { state.selectedProjectID = $0 }
+                )) {
+                    ForEach(state.projects) { project in
+                        Text(project.name).tag(project.id)
+                    }
+                }
+                .pickerStyle(.automatic)
+                .padding([.top, .horizontal], 8)
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(state.projects) { project in
-                        ProjectRow(project: project)
+                    if let sel = state.selectedProjectID, let proj = state.projects.first(where: { $0.id == sel }) {
+                        ProjectRow(project: proj)
+                    } else if let first = state.projects.first { // fallback
+                        ProjectRow(project: first)
+                    } else {
+                        Text("No projects configured")
+                            .foregroundColor(.secondary)
+                            .padding(8)
                     }
                 }
                 .padding(8)
             }
             Divider()
             HStack {
-                Button("Preferences") { state.showingPreferences = true }
+                Button("Preferences") { PreferencesWindowController.shared.show() }
                 Spacer()
                 Button("Quit") { NSApplication.shared.terminate(nil) }
             }
             .padding(8)
         }
         .frame(width: 320, height: 480)
-        .sheet(isPresented: $state.showingPreferences) {
-            PreferencesView()
-                .frame(minWidth: 560, minHeight: 420)
-        }
         .sheet(item: $state.activeLog) { item in
             LogWindowView(logState: item)
                 .frame(minWidth: 700, minHeight: 400)
@@ -58,21 +73,50 @@ struct ScriptRow: View {
     let project: Project
     let script: Script
     @State private var isRunning: Bool = false
+    @State private var selectedIndex: Int = 0
+
+    private enum ScriptAction: CaseIterable {
+        case start, stop, logs
+        var title: String {
+            switch self {
+            case .start: return "Start"
+            case .stop: return "Stop"
+            case .logs: return "Logs"
+            }
+        }
+    }
+
+    private var actions: [ScriptAction] {
+        if isRunning {
+            return [.stop, .logs]
+        } else {
+            return [.start, .logs]
+        }
+    }
 
     var body: some View {
         HStack {
             Text(script.name)
             Spacer()
-            Menu(isRunning ? "Stop" : "Start") {
-                if isRunning {
-                    Button("Stop") { stop() }
-                } else {
-                    Button("Start") { start() }
+            Picker("", selection: $selectedIndex) {
+                ForEach(0..<actions.count, id: \.self) { index in
+                    Text(actions[index].title).tag(index)
                 }
-                Button("Logs") { openLogs() }
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
+            .labelsHidden()
+            .pickerStyle(.automatic)  // macOS popup style
+            .frame(width: 90)
+            .onChange(of: selectedIndex) { newValue in
+                guard newValue < actions.count else { return }
+                let action = actions[newValue]
+                switch action {
+                case .start: start()
+                case .stop: stop()
+                case .logs: openLogs()
+                }
+                // Always reset to primary action (index 0) for consistent labeling
+                selectedIndex = 0
+            }
         }
         .onAppear { isRunning = ProcessManager.shared.logsPublisher(for: script.id) != nil }
     }

@@ -31,13 +31,15 @@ struct Project: Identifiable, Codable, Hashable {
 
 final class AppState: ObservableObject {
     @Published var projects: [Project] = []
-    @Published var showingPreferences: Bool = false
     @Published var activeLog: ScriptLogState? = nil
+    @Published var selectedProjectID: UUID? = nil
 
     static let shared = AppState()
 
     private init() {
         load()
+    // Ensure there is an initial selection if projects exist
+    if selectedProjectID == nil { selectedProjectID = projects.first?.id }
     }
 
     func load() {
@@ -45,6 +47,7 @@ final class AppState: ObservableObject {
             let decoded = try? JSONDecoder().decode([Project].self, from: data)
         {
             self.projects = decoded
+            if selectedProjectID == nil { selectedProjectID = decoded.first?.id }
         }
     }
 
