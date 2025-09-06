@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 @main
@@ -20,7 +21,7 @@ struct DaihonAppMain: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
-    var popover: NSPopover!
+    private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Start as a status bar app (no Dock) and elevate to Dock when needed (e.g., Preferences)
@@ -30,29 +31,100 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "tray.full", accessibilityDescription: "Daihon")
-            button.action = #selector(togglePopover(_:))
-            button.target = self
         }
+        refreshMenu()
 
-        popover = NSPopover()
-        popover.contentSize = NSSize(width: 320, height: 480)
-        popover.behavior = .transient
-        popover.contentViewController = NSHostingController(rootView: MenuContentView())
+        // Rebuild menu when projects list or running processes change
+        AppState.shared.$projects
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refreshMenu() }
+            .store(in: &cancellables)
+        ProcessManager.shared.$running
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refreshMenu() }
+            .store(in: &cancellables)
 
         // Try to set a custom application icon for Dock and Cmd-Tab
         setApplicationIconIfAvailable()
     }
 
-    @objc func togglePopover(_ sender: AnyObject?) {
-        if let button = statusItem.button {
-            if popover.isShown {
-                popover.performClose(sender)
-            } else {
-                popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-                popover.contentViewController?.view.window?.makeKey()
+    private func refreshMenu() {
+        let menu = NSMenu()
+        let state = AppState.shared
+        if state.projects.isEmpty {
+            let item = NSMenuItem(title: "No projects configured", action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            menu.addItem(item)
+        } else {
+            for project in state.projects {
+                let projectMenu = NSMenu()
+                if project.scripts.isEmpty {
+                    let empty = NSMenuItem(title: "No scripts", action: nil, keyEquivalent: "")
+                    empty.isEnabled = false
+                    projectMenu.addItem(empty)
+                } else {
+                    for script in project.scripts {
+                        let scriptSub = NSMenu()
+                        let isRunning = ProcessManager.shared.logsPublisher(for: script.id) != nil
+                        let primaryTitle = isRunning ? "Stop" : "Start"
+                        let startStopItem = NSMenuItem(
+                            title: primaryTitle, action: #selector(toggleScript(_:)),
+                            keyEquivalent: "")
+                        startStopItem.representedObject = ScriptMenuContext(
+                            projectID: project.id, scriptID: script.id)
+                        scriptSub.addItem(startStopItem)
+                        let logsItem = NSMenuItem(
+                            title: "Logs", action: #selector(openLogs(_:)), keyEquivalent: "")
+                        logsItem.representedObject = ScriptMenuContext(
+                            projectID: project.id, scriptID: script.id)
+                        scriptSub.addItem(logsItem)
+
+                        let scriptItem = NSMenuItem(
+                            title: script.name, action: nil, keyEquivalent: "")
+                        menu.setSubmenu(scriptSub, for: scriptItem)
+                        projectMenu.addItem(scriptItem)
+                    }
+                }
+                let projectItem = NSMenuItem(title: project.name, action: nil, keyEquivalent: "")
+                menu.setSubmenu(projectMenu, for: projectItem)
+                menu.addItem(projectItem)
+                menu.addItem(.separator())
             }
         }
+        // Footer
+        menu.addItem(
+            withTitle: "Preferences…", action: #selector(openPreferences), keyEquivalent: ",")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Quit Daihon", action: #selector(quit), keyEquivalent: "q")
+        statusItem.menu = menu
     }
+
+    @objc private func toggleScript(_ sender: NSMenuItem) {
+        guard let ctx = sender.representedObject as? ScriptMenuContext,
+            let project = AppState.shared.projects.first(where: { $0.id == ctx.projectID }),
+            let script = project.scripts.first(where: { $0.id == ctx.scriptID })
+        else { return }
+        let isRunning = ProcessManager.shared.logsPublisher(for: script.id) != nil
+        if isRunning {
+            ProcessManager.shared.stop(scriptID: script.id)
+        } else {
+            ProcessManager.shared.start(script: script, in: project)
+        }
+        refreshMenu()
+    }
+
+    @objc private func openLogs(_ sender: NSMenuItem) {
+        guard let ctx = sender.representedObject as? ScriptMenuContext,
+            let project = AppState.shared.projects.first(where: { $0.id == ctx.projectID }),
+            let script = project.scripts.first(where: { $0.id == ctx.scriptID })
+        else { return }
+        LogWindowController.shared.show(project: project, script: script)
+    }
+}
+
+private struct ScriptMenuContext {
+    let projectID: UUID
+    let scriptID: UUID
 }
 
 // MARK: - Dock menu & Icon
