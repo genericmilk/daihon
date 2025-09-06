@@ -86,7 +86,19 @@ ensure_app_icon() {
 
   # Informative notice if only SVG exists
   if [[ -d "$ICON_DIR" ]] && find "$ICON_DIR" -type f -iname '*.svg' -print -quit >/dev/null; then
-    echo "[icon] Found SVG(s) in $ICON_DIR but no PNG/.icns. Please export a PNG (512px or 1024px) or .icns."
+    echo "[icon] Found SVG(s) in $ICON_DIR. Converting to PNG for app icon."
+    local SVG
+    SVG=$(find "$ICON_DIR" -type f -iname '*.svg' -print -quit 2>/dev/null || true)
+    if [[ -n "$SVG" ]]; then
+      qlmanage -t -s 1024 -o "$RES_DIR" "$SVG" >/dev/null 2>&1 || true
+      local PNG_OUT="$RES_DIR/$(basename "$SVG").png"
+      if [[ -f "$PNG_OUT" ]]; then
+        mv "$PNG_OUT" "$RES_DIR/AppIcon.png"
+        echo "==> Using app icon: $SVG -> $RES_DIR/AppIcon.png"
+        return 0
+      fi
+    fi
+    echo "[icon] Failed to convert SVG. Please export a PNG (512px or 1024px) or .icns."
     echo "[icon] See: https://developer.apple.com/documentation/xcode/configuring-your-app-icon"
   fi
 }
@@ -97,9 +109,51 @@ echo "==> Building (configuration: $CONFIG)"
 swift build -c "$CONFIG"
 
 if [[ "$RUN" -eq 1 ]]; then
-  echo "==> Running DaihonApp (configuration: $CONFIG)"
+  echo "==> Creating app bundle for proper icon support"
+  local APP_DIR="Daihon.app"
+  local CONTENTS_DIR="$APP_DIR/Contents"
+  local MACOS_DIR="$CONTENTS_DIR/MacOS"
+  local RES_DIR="$CONTENTS_DIR/Resources"
+  mkdir -p "$MACOS_DIR" "$RES_DIR"
+  
+  # Copy executable
+  cp ".build/$CONFIG/DaihonApp" "$MACOS_DIR/"
+  chmod +x "$MACOS_DIR/DaihonApp"
+  
+  # Copy resources
+  cp -r "Sources/DaihonApp/Resources/"* "$RES_DIR/" 2>/dev/null || true
+  
+  # Create Info.plist
+  cat > "$CONTENTS_DIR/Info.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key>
+	<string>DaihonApp</string>
+	<key>CFBundleIconFile</key>
+	<string>Daihon.icon</string>
+	<key>CFBundleIconName</key>
+	<string>Daihon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.genericmilk.daihon</string>
+	<key>CFBundleName</key>
+	<string>Daihon</string>
+	<key>CFBundleVersion</key>
+	<string>1.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2025 genericmilk. All rights reserved.</string>
+</dict>
+</plist>
+EOF
+  
+  echo "==> Running Daihon.app (configuration: $CONFIG)"
   # exec replaces the shell so Ctrl-C stops the app and exits the script
-  exec swift run -c "$CONFIG" DaihonApp
+  exec open "$APP_DIR"
 else
   echo "==> Build complete (skipping run)"
 fi

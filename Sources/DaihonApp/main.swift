@@ -169,6 +169,18 @@ extension AppDelegate {
             }
         }
 
+        // Try to load from Daihon.icon
+        if let resourceURL = bundle.resourceURL {
+            let svgURL = resourceURL.appendingPathComponent(
+                "Daihon.icon/Assets/Recraft Untitled Image.svg")
+            if FileManager.default.fileExists(atPath: svgURL.path),
+                let img = NSImage(contentsOf: svgURL)
+            {
+                NSApp.applicationIconImage = img
+                return
+            }
+        }
+
         // Fallback: try to find an icon next to the executable (e.g., development layout)
         let fm = FileManager.default
         let searchRoots: [URL] = [
@@ -188,6 +200,7 @@ extension AppDelegate {
                 let candidates = [
                     iconFolder.appendingPathComponent("AppIcon.png"),
                     iconFolder.appendingPathComponent("icon.png"),
+                    iconFolder.appendingPathComponent("Assets/Recraft Untitled Image.svg"),
                 ]
                 for url in candidates where fm.fileExists(atPath: url.path) {
                     if let img = NSImage(contentsOf: url) {
