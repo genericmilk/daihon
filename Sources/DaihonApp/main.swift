@@ -219,15 +219,17 @@ extension AppDelegate {
     }
 
     private func setApplicationIconIfAvailable() {
-        // Preferred: AppIcon.png in bundle resources or Daihon.icns
+        // Preferred: AppIcon.icns in bundle resources, then AppIcon.png
         let bundle = Bundle.main
         let candidates: [URL?] = [
+            bundle.url(forResource: "AppIcon", withExtension: "icns"),
             bundle.url(forResource: "AppIcon", withExtension: "png"),
             bundle.url(forResource: "Daihon", withExtension: "icns"),
         ]
         for url in candidates.compactMap({ $0 }) {
             if let img = NSImage(contentsOf: url) {
                 NSApp.applicationIconImage = img
+                print("Set application icon from: \(url.path)")
                 return
             }
         }
