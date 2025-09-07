@@ -1,8 +1,0 @@
-Place your app icon assets here. For runtime icon setting, the app will try:
-- AppIcon.png (512x512 or 1024x1024 recommended)
-- Daihon.icns
-- Daihon.icon (new format for macOS Tahoe, supports Liquid Glass, light/dark modes, clear icons)
-
-The Daihon.icon is included and supports macOS Tahoe features.
-
-Note: For proper distribution, convert your Icon Composer bundle (Daihon.icon) into an .icns and set it in an .app bundle or Info.plist when packaging. For SwiftPM run targets, we set the icon at runtime.
