@@ -29,8 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.image = NSImage(
-                systemSymbolName: "tray.full", accessibilityDescription: "Daihon")
+            setupMenuBarIcon(for: button)
         }
         refreshMenu()
 
@@ -46,6 +45,70 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Try to set a custom application icon for Dock and Cmd-Tab
         setApplicationIconIfAvailable()
+    }
+
+    private func setupMenuBarIcon(for button: NSStatusBarButton) {
+        // First try to load from app bundle Resources
+        if let bundleIconURL = Bundle.main.url(forResource: "foreground", withExtension: "png"),
+            let bundleImage = NSImage(contentsOf: bundleIconURL)
+        {
+            print("Loaded custom icon from app bundle: \(bundleIconURL.path)")
+            let resizedImage = resizeImageForMenuBar(bundleImage)
+            button.image = resizedImage
+            button.toolTip = "Daihon"
+
+            // Force refresh the status item
+            DispatchQueue.main.async {
+                button.needsDisplay = true
+            }
+            return
+        }
+
+        // Try to load the custom foreground.png from icon-res directory (for development)
+        let fm = FileManager.default
+        let searchRoots: [URL] = [
+            URL(fileURLWithPath: fm.currentDirectoryPath),
+            URL(fileURLWithPath: fm.currentDirectoryPath).deletingLastPathComponent(),
+        ]
+
+        for root in searchRoots {
+            let iconPath = root.appendingPathComponent("icon-res/foreground.png")
+            if fm.fileExists(atPath: iconPath.path), let image = NSImage(contentsOf: iconPath) {
+                print("Successfully loaded custom icon from: \(iconPath.path)")
+                let resizedImage = resizeImageForMenuBar(image)
+                button.image = resizedImage
+                button.toolTip = "Daihon"
+
+                // Force refresh the status item
+                DispatchQueue.main.async {
+                    button.needsDisplay = true
+                }
+                return
+            }
+        }
+
+        print("Custom icon not found, using fallback system icon")
+        // Fallback to system icon if custom icon not found
+        button.image = NSImage(systemSymbolName: "tray.full", accessibilityDescription: "Daihon")
+    }
+
+    private func resizeImageForMenuBar(_ image: NSImage) -> NSImage {
+        let targetSize = NSSize(width: 18, height: 18)
+        let resizedImage = NSImage(size: targetSize)
+
+        resizedImage.lockFocus()
+        image.draw(
+            in: NSRect(origin: .zero, size: targetSize),
+            from: NSRect(origin: .zero, size: image.size),
+            operation: .sourceOver,
+            fraction: 1.0)
+        resizedImage.unlockFocus()
+
+        // Don't set as template initially to see if the image is visible
+        // resizedImage.isTemplate = true
+
+        print("Created resized image: \(targetSize) - template: false (for testing)")
+        return resizedImage
     }
 
     private func refreshMenu() {

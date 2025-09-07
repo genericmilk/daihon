@@ -15,7 +15,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate {
 
         let hosting = NSHostingController(rootView: PreferencesView())
         let win = NSWindow(contentViewController: hosting)
-        win.title = "Preferences — Daihon"
+        win.title = "Preferences"
         win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         win.setContentSize(NSSize(width: 600, height: 450))
         win.center()

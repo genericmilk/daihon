@@ -123,6 +123,12 @@ if [[ "$RUN" -eq 1 ]]; then
   # Copy resources
   cp -r "Sources/DaihonApp/Resources/"* "$RES_DIR/" 2>/dev/null || true
   
+  # Copy custom menu bar icon
+  if [[ -f "icon-res/foreground.png" ]]; then
+    cp "icon-res/foreground.png" "$RES_DIR/"
+    echo "==> Copied custom menu bar icon: icon-res/foreground.png -> $RES_DIR/"
+  fi
+  
   # Create Info.plist
   cat > "$CONTENTS_DIR/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
