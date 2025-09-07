@@ -104,10 +104,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             fraction: 1.0)
         resizedImage.unlockFocus()
 
-        // Don't set as template initially to see if the image is visible
-        // resizedImage.isTemplate = true
+        // Set as template to enable automatic appearance inversion
+        resizedImage.isTemplate = true
 
-        print("Created resized image: \(targetSize) - template: false (for testing)")
+        print("Created resized image: \(targetSize) - template: true")
         return resizedImage
     }
 
