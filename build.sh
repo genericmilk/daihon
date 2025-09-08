@@ -40,7 +40,7 @@ fi
 
 ensure_app_icon() {
   local RES_DIR="Sources/DaihonApp/Resources"
-  local ICON_DIR="Daihon.icon"
+  local ICON_DIR="AppIcon.icon"
   mkdir -p "$RES_DIR"
 
   # If AppIcon.png or Daihon.icns already exists in resources, keep it
@@ -138,9 +138,9 @@ if [[ "$RUN" -eq 1 ]]; then
 	<key>CFBundleExecutable</key>
 	<string>DaihonApp</string>
 	<key>CFBundleIconFile</key>
-	<string>Daihon.icon</string>
+	<string>AppIcon.icon</string>
 	<key>CFBundleIconName</key>
-	<string>Daihon</string>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.genericmilk.daihon</string>
 	<key>CFBundleName</key>
