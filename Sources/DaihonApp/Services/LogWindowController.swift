@@ -5,18 +5,16 @@ final class LogWindowController: NSObject {
     static let shared = LogWindowController()
     private var windows: [UUID: NSWindow] = [:]  // key scriptID
 
-    func show(project: Project, script: Script) {
-        let key = script.id
+    func show(logState: ScriptLogState) {
+        let key = logState.scriptID
         if let win = windows[key] {
             win.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let state = ScriptLogState(
-            projectID: project.id, scriptID: script.id, title: "\(project.name) • \(script.name)")
-        let hosting = NSHostingController(rootView: LogWindowView(logState: state))
+        let hosting = NSHostingController(rootView: LogWindowView(logState: logState))
         let win = NSWindow(contentViewController: hosting)
-        win.title = state.title
+        win.title = logState.title
         win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         win.setContentSize(NSSize(width: 700, height: 400))
         win.center()

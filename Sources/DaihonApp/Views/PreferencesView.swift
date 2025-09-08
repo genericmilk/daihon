@@ -4,6 +4,7 @@ import SwiftUI
 struct PreferencesView: View {
     @ObservedObject var state = AppState.shared
     @State private var draftProjects: [Project] = []
+    @ObservedObject var processManager = ProcessManager.shared
     @State private var alert: String? = nil
 
     var body: some View {
@@ -15,19 +16,41 @@ struct PreferencesView: View {
             }
             List {
                 ForEach($draftProjects) { $project in
-                    VStack(alignment: .leading) {
-                        HStack {
-                            TextField("Name", text: $project.name)
-                            TextField("Path", text: $project.path)
-                        }
-                        ScrollView(.horizontal) {
+                    HStack {
+                        VStack(alignment: .leading) {
                             HStack {
-                                ForEach(project.scripts) { s in
-                                    Text(s.name).padding(4).background(Color.gray.opacity(0.15))
-                                        .cornerRadius(4)
+                                TextField("Name", text: $project.name)
+                                TextField("Path", text: $project.path)
+                            }
+                            ScrollView(.horizontal) {
+                                HStack {
+                                    ForEach($project.scripts) { $script in
+                                        let isRunning = processManager.running[script.id] != nil
+                                        Button(action: {
+                                            toggleScript(script, for: project)
+                                        }) {
+                                            Text(script.name).padding(4)
+                                                .background(
+                                                    isRunning ? Color.green.opacity(0.5) : Color
+                                                        .gray.opacity(0.15)
+                                                )
+                                                .cornerRadius(4)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
                                 }
                             }
                         }
+                        Spacer()
+                        Button(action: {
+                            if let index = draftProjects.firstIndex(where: { $0.id == project.id }) {
+                                draftProjects.remove(at: index)
+                            }
+                        }) {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(.red)
                     }
                 }
                 .onDelete { idx in draftProjects.remove(atOffsets: idx) }
@@ -44,6 +67,19 @@ struct PreferencesView: View {
         .alert(item: Binding(get: { alert.map { AlertItem(msg: $0) } }, set: { _ in alert = nil }))
         { a in
             Alert(title: Text("Error"), message: Text(a.msg))
+        }
+    }
+
+    func toggleScript(_ script: Script, for project: Project) {
+        if processManager.running[script.id] != nil {
+            processManager.stop(scriptID: script.id)
+        } else {
+            processManager.start(script: script, in: project)
+            let logState = ScriptLogState(
+                projectID: project.id, scriptID: script.id, title: "\(project.name): \(script.name)"
+            )
+            state.activeLog = logState
+            LogWindowController.shared.show(logState: logState)
         }
     }
 

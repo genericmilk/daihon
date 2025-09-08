@@ -181,7 +181,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let project = AppState.shared.projects.first(where: { $0.id == ctx.projectID }),
             let script = project.scripts.first(where: { $0.id == ctx.scriptID })
         else { return }
-        LogWindowController.shared.show(project: project, script: script)
+        let logState = ScriptLogState(
+            projectID: project.id, scriptID: script.id, title: "\(project.name) • \(script.name)")
+        LogWindowController.shared.show(logState: logState)
     }
 }
 
