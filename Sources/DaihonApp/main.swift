@@ -118,6 +118,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let item = NSMenuItem(title: "No projects configured", action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
+            menu.addItem(.separator())
         } else {
             for project in state.projects {
                 let projectMenu = NSMenu()
@@ -151,8 +152,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let projectItem = NSMenuItem(title: project.name, action: nil, keyEquivalent: "")
                 menu.setSubmenu(projectMenu, for: projectItem)
                 menu.addItem(projectItem)
-                menu.addItem(.separator())
             }
+            // Add separator after all projects
+            menu.addItem(.separator())
         }
         // Footer
         menu.addItem(
