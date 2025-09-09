@@ -234,6 +234,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
                 subtitle: project.name,
                 body: "'\(script.name)' is now running"
             )
+            
+            // Automatically open the execution log when starting a script
+            let logState = ScriptLogState(
+                projectID: project.id, scriptID: script.id, title: "\(project.name) • \(script.name)")
+            LogWindowController.shared.show(logState: logState)
         }
         refreshMenu()
     }
