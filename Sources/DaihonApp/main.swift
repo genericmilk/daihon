@@ -19,13 +19,16 @@ struct DaihonAppMain: App {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegate {
     var statusItem: NSStatusItem!
     private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Start as a status bar app (no Dock) and elevate to Dock when needed (e.g., Preferences)
         NSApp.setActivationPolicy(.accessory)
+
+        // Configure notification center delegate
+        NSUserNotificationCenter.default.delegate = self
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
@@ -111,6 +114,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return resizedImage
     }
 
+    private func showNotification(title: String, subtitle: String, body: String) {
+        // Method 1: Try NSUserNotification (may not work due to permissions)
+        let notification = NSUserNotification()
+        notification.title = title
+        notification.subtitle = subtitle
+        notification.informativeText = body
+        notification.soundName = NSUserNotificationDefaultSoundName
+        
+        NSUserNotificationCenter.default.deliver(notification)
+        
+        // Method 2: Always log to console for debugging
+        print("📢 \(title): \(subtitle) - \(body)")
+        
+        // Method 3: Play system beep as audio feedback
+        NSSound.beep()
+        
+        // Method 4: Show a temporary banner in the menu (update menu bar button)
+        if let button = statusItem.button {
+            let originalTitle = button.title
+            button.title = "●" // Show dot indicator
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                button.title = originalTitle
+            }
+        }
+    }
+
+    // MARK: - NSUserNotificationCenterDelegate
+    func userNotificationCenter(_ center: NSUserNotificationCenter, shouldPresent notification: NSUserNotification) -> Bool {
+        // Always show notifications, even when app is active
+        return true
+    }
+
     private func refreshMenu() {
         let menu = NSMenu()
         let state = AppState.shared
@@ -187,8 +222,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let isRunning = ProcessManager.shared.logsPublisher(for: script.id) != nil
         if isRunning {
             ProcessManager.shared.stop(scriptID: script.id)
+            showNotification(
+                title: "Script Stopped",
+                subtitle: project.name,
+                body: "'\(script.name)' has been stopped"
+            )
         } else {
             ProcessManager.shared.start(script: script, in: project)
+            showNotification(
+                title: "Script Started",
+                subtitle: project.name,
+                body: "'\(script.name)' is now running"
+            )
         }
         refreshMenu()
     }
