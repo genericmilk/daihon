@@ -145,11 +145,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
                         let scriptItem = NSMenuItem(
                             title: script.name, action: nil, keyEquivalent: "")
+                        
+                        // Add running indicator icon to script item
+                        if isRunning {
+                            scriptItem.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: "Running")
+                        }
+                        
                         menu.setSubmenu(scriptSub, for: scriptItem)
                         projectMenu.addItem(scriptItem)
                     }
                 }
                 let projectItem = NSMenuItem(title: project.name, action: nil, keyEquivalent: "")
+                
+                // Add running indicator icon to project item if any scripts are running
+                let hasRunningScripts = project.scripts.contains { script in
+                    ProcessManager.shared.logsPublisher(for: script.id) != nil
+                }
+                if hasRunningScripts {
+                    projectItem.image = NSImage(systemSymbolName: "dot.radiowaves.left.and.right", accessibilityDescription: "Has running scripts")
+                }
+                
                 menu.setSubmenu(projectMenu, for: projectItem)
                 menu.addItem(projectItem)
             }
