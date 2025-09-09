@@ -6,6 +6,7 @@ struct PreferencesView: View {
     @State private var draftProjects: [Project] = []
     @ObservedObject var processManager = ProcessManager.shared
     @State private var alert: String? = nil
+    @State private var startAtLogin: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -55,7 +56,19 @@ struct PreferencesView: View {
                 }
                 .onDelete { idx in draftProjects.remove(atOffsets: idx) }
             }
-            HStack {
+            HStack(alignment: .center) {
+                Toggle(isOn: Binding(get: { startAtLogin }, set: { newValue in
+                    do {
+                        try LoginItemManager.shared.setEnabled(newValue)
+                        startAtLogin = newValue
+                    } catch {
+                        alert = "Failed to update login item: \(error.localizedDescription)"
+                    }
+                })) {
+                    Text("Start Daihon at login")
+                }
+                .toggleStyle(.switch)
+
                 Spacer()
                 Button("Cancel") { close(false) }
                 Button("Save") { close(true) }
@@ -63,7 +76,10 @@ struct PreferencesView: View {
             }
         }
         .padding(16)
-        .onAppear { draftProjects = state.projects }
+        .onAppear {
+            draftProjects = state.projects
+            startAtLogin = LoginItemManager.shared.isEnabled
+        }
         .alert(item: Binding(get: { alert.map { AlertItem(msg: $0) } }, set: { _ in alert = nil }))
         { a in
             Alert(title: Text("Error"), message: Text(a.msg))
