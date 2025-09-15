@@ -75,6 +75,18 @@ final class ProcessManager: ObservableObject {
         running.removeValue(forKey: scriptID)
     }
 
+    func restart(script: Script, in project: Project) {
+        // Stop the script if it's running
+        if running[script.id] != nil {
+            stop(scriptID: script.id)
+        }
+
+        // Wait a brief moment to ensure cleanup, then start
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.start(script: script, in: project)
+        }
+    }
+
     func logsPublisher(for scriptID: UUID) -> AnyPublisher<String, Never>? {
         running[scriptID]?.logSubject.eraseToAnyPublisher()
     }

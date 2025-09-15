@@ -92,13 +92,14 @@ struct PreferencesView: View {
                     .fontWeight(.semibold)
                     .padding(.top, 2)
                 #endif
+
+                // Copyright moved under version/debug text
+                Text("© genericmilk 2025")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 2)
             }
             .padding(.vertical, 20)
-
-            VStack(spacing: 8) {
-                Divider()
-                    .padding(.vertical, 20)
-            }
 
             // Navigation items styled like musumo
             List(PrefTab.allCases, selection: $tab) { item in
@@ -109,15 +110,6 @@ struct PreferencesView: View {
             .frame(minWidth: 200)
 
             Spacer(minLength: 0)
-
-            // Footer
-            VStack(alignment: .leading, spacing: 6) {
-                Divider()
-                Text("© genericmilk 2025")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
         }
         .background(Color.clear)
         .modifier(GlassSidebarBackground())
@@ -156,8 +148,10 @@ struct PreferencesView: View {
                 Toggle("Show notifications", isOn: $showNotifications)
                     .toggleStyle(.switch)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private var packagesView: some View {
@@ -169,13 +163,16 @@ struct PreferencesView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Text(helpTextForPackageManager(selectedManager))
                     .font(.footnote)
                     .foregroundColor(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     // About section removed per request

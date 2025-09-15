@@ -138,7 +138,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
         // Method 4: Show a temporary banner in the menu (update menu bar button)
         if let button = statusItem.button {
             let originalTitle = button.title
-            button.title = "●" // Show dot indicator
+            button.title = "●"  // Show dot indicator
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 button.title = originalTitle
             }
@@ -146,7 +146,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
     }
 
     // MARK: - NSUserNotificationCenterDelegate
-    func userNotificationCenter(_ center: NSUserNotificationCenter, shouldPresent notification: NSUserNotification) -> Bool {
+    func userNotificationCenter(
+        _ center: NSUserNotificationCenter, shouldPresent notification: NSUserNotification
+    ) -> Bool {
         // Always show notifications, even when app is active
         return true
     }
@@ -177,6 +179,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
                         startStopItem.representedObject = ScriptMenuContext(
                             projectID: project.id, scriptID: script.id)
                         scriptSub.addItem(startStopItem)
+
+                        // Add restart option (only if script is running)
+                        if isRunning {
+                            let restartItem = NSMenuItem(
+                                title: "Restart", action: #selector(restartScript(_:)),
+                                keyEquivalent: "")
+                            restartItem.representedObject = ScriptMenuContext(
+                                projectID: project.id, scriptID: script.id)
+                            scriptSub.addItem(restartItem)
+                        }
+
                         let logsItem = NSMenuItem(
                             title: "Logs", action: #selector(openLogs(_:)), keyEquivalent: "")
                         logsItem.representedObject = ScriptMenuContext(
@@ -185,26 +198,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
 
                         let scriptItem = NSMenuItem(
                             title: script.name, action: nil, keyEquivalent: "")
-                        
+
                         // Add running indicator icon to script item
                         if isRunning {
-                            scriptItem.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: "Running")
+                            scriptItem.image = NSImage(
+                                systemSymbolName: "play.fill", accessibilityDescription: "Running")
                         }
-                        
+
                         menu.setSubmenu(scriptSub, for: scriptItem)
                         projectMenu.addItem(scriptItem)
                     }
                 }
                 let projectItem = NSMenuItem(title: project.name, action: nil, keyEquivalent: "")
-                
+
                 // Add running indicator icon to project item if any scripts are running
                 let hasRunningScripts = project.scripts.contains { script in
                     ProcessManager.shared.logsPublisher(for: script.id) != nil
                 }
                 if hasRunningScripts {
-                    projectItem.image = NSImage(systemSymbolName: "dot.radiowaves.left.and.right", accessibilityDescription: "Has running scripts")
+                    projectItem.image = NSImage(
+                        systemSymbolName: "dot.radiowaves.left.and.right",
+                        accessibilityDescription: "Has running scripts")
                 }
-                
+
                 menu.setSubmenu(projectMenu, for: projectItem)
                 menu.addItem(projectItem)
             }
@@ -242,12 +258,34 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
                 subtitle: project.name,
                 body: "'\(script.name)' is now running"
             )
-            
+
             // Automatically open the execution log when starting a script
             let logState = ScriptLogState(
-                projectID: project.id, scriptID: script.id, title: "\(project.name) • \(script.name)")
+                projectID: project.id, scriptID: script.id,
+                title: "\(project.name) • \(script.name)")
             LogWindowController.shared.show(logState: logState)
         }
+        refreshMenu()
+    }
+
+    @objc private func restartScript(_ sender: NSMenuItem) {
+        guard let ctx = sender.representedObject as? ScriptMenuContext,
+            let project = AppState.shared.projects.first(where: { $0.id == ctx.projectID }),
+            let script = project.scripts.first(where: { $0.id == ctx.scriptID })
+        else { return }
+
+        ProcessManager.shared.restart(script: script, in: project)
+        showNotification(
+            title: "Script Restarted",
+            subtitle: project.name,
+            body: "'\(script.name)' has been restarted"
+        )
+
+        // Automatically open the execution log when restarting a script
+        let logState = ScriptLogState(
+            projectID: project.id, scriptID: script.id, title: "\(project.name) • \(script.name)")
+        LogWindowController.shared.show(logState: logState)
+
         refreshMenu()
     }
 
