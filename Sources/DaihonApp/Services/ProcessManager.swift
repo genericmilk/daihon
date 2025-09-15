@@ -21,8 +21,10 @@ final class ProcessManager: ObservableObject {
         let process = Process()
         process.currentDirectoryURL = URL(fileURLWithPath: project.path)
         process.launchPath = "/bin/zsh"
-        // Run npm script via zsh login shell and merge stderr to stdout
-        process.arguments = ["-lc", "npm run \(escape(script.command)) 2>&1"]
+        // Build command based on preferred package manager and merge stderr to stdout
+        let pm = AppState.shared.preferences.packageManager
+        let baseCmd = pm.commandToRun(script: escape(script.command))
+        process.arguments = ["-lc", "\(baseCmd) 2>&1"]
 
         let outputPipe = Pipe()
         let errorPipe = Pipe()

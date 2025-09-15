@@ -115,21 +115,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
     }
 
     private func showNotification(title: String, subtitle: String, body: String) {
+        guard AppState.shared.preferences.showNotifications else {
+            // Still log for debugging when notifications disabled
+            print("(notifications off) \(title): \(subtitle) - \(body)")
+            return
+        }
         // Method 1: Try NSUserNotification (may not work due to permissions)
         let notification = NSUserNotification()
         notification.title = title
         notification.subtitle = subtitle
         notification.informativeText = body
         notification.soundName = NSUserNotificationDefaultSoundName
-        
+
         NSUserNotificationCenter.default.deliver(notification)
-        
+
         // Method 2: Always log to console for debugging
         print("📢 \(title): \(subtitle) - \(body)")
-        
+
         // Method 3: Play system beep as audio feedback
         NSSound.beep()
-        
+
         // Method 4: Show a temporary banner in the menu (update menu bar button)
         if let button = statusItem.button {
             let originalTitle = button.title
@@ -207,6 +212,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
             menu.addItem(.separator())
         }
         // Footer
+        let manageItem = NSMenuItem(
+            title: "Sites…", action: #selector(openSites), keyEquivalent: "s")
+        menu.addItem(manageItem)
         menu.addItem(
             withTitle: "Preferences…", action: #selector(openPreferences), keyEquivalent: ",")
         menu.addItem(.separator())
@@ -272,6 +280,7 @@ extension AppDelegate {
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
+        menu.addItem(withTitle: "Sites…", action: #selector(openSites), keyEquivalent: "s")
         menu.addItem(
             withTitle: "Preferences…", action: #selector(openPreferences), keyEquivalent: ",")
         menu.addItem(.separator())
@@ -281,6 +290,10 @@ extension AppDelegate {
 
     @objc private func openPreferences() {
         PreferencesWindowController.shared.show()
+    }
+
+    @objc private func openSites() {
+        SitesWindowController.shared.show()
     }
 
     @objc private func quit() {
