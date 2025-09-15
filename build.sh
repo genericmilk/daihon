@@ -38,6 +38,41 @@ if ! command -v swift >/dev/null 2>&1; then
   exit 1
 fi
 
+close_existing_daihon() {
+  echo "==> Checking for existing Daihon instances"
+  
+  # Find and kill any running Daihon processes
+  local PIDS
+  PIDS=$(pgrep -f "DaihonApp\|Daihon\.app" 2>/dev/null || true)
+  
+  if [[ -n "$PIDS" ]]; then
+    echo "==> Found running Daihon instances, closing them..."
+    echo "$PIDS" | while read -r PID; do
+      if [[ -n "$PID" ]]; then
+        echo "    Closing process $PID"
+        kill "$PID" 2>/dev/null || true
+      fi
+    done
+    
+    # Wait a moment for graceful shutdown
+    sleep 2
+    
+    # Force kill if still running
+    PIDS=$(pgrep -f "DaihonApp\|Daihon\.app" 2>/dev/null || true)
+    if [[ -n "$PIDS" ]]; then
+      echo "==> Force closing remaining instances..."
+      echo "$PIDS" | while read -r PID; do
+        if [[ -n "$PID" ]]; then
+          echo "    Force closing process $PID"
+          kill -9 "$PID" 2>/dev/null || true
+        fi
+      done
+    fi
+  else
+    echo "==> No existing Daihon instances found"
+  fi
+}
+
 ensure_app_icon() {
   local RES_DIR="Sources/DaihonApp/Resources"
   local ICON_DIR="AppIcon.icon"
@@ -104,6 +139,8 @@ ensure_app_icon() {
 }
 
 ensure_app_icon
+
+close_existing_daihon
 
 echo "==> Building (configuration: $CONFIG)"
 swift build -c "$CONFIG"

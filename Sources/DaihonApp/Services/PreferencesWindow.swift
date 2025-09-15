@@ -30,7 +30,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate {
         // Disable full screen behavior and zoom-to-fullscreen
         win.collectionBehavior.remove([.fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling])
         win.standardWindowButton(.zoomButton)?.isEnabled = false
-        win.setContentSize(NSSize(width: 600, height: 450))
+        win.setContentSize(NSSize(width: 720, height: 520))
         win.center()
         win.isReleasedWhenClosed = false
         win.delegate = self
