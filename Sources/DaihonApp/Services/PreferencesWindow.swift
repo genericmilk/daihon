@@ -19,8 +19,8 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate {
         win.title = "Preferences"
         win.titleVisibility = .hidden
         win.titlebarAppearsTransparent = true
-        win.isOpaque = false
-        win.backgroundColor = .clear
+        win.isOpaque = true
+        win.backgroundColor = NSColor.windowBackgroundColor
         win.styleMask = [.titled, .closable, .resizable]
         let toolbar = NSToolbar(identifier: NSToolbar.Identifier("PreferencesToolbar"))
         toolbar.showsBaselineSeparator = false
@@ -30,7 +30,9 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate {
         }
         win.isMovableByWindowBackground = true
         // Disable full screen behavior and zoom-to-fullscreen
-        win.collectionBehavior.remove([.fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling])
+        win.collectionBehavior.remove([
+            .fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling,
+        ])
         win.standardWindowButton(.zoomButton)?.isEnabled = false
         win.setContentSize(NSSize(width: 720, height: 520))
         win.center()

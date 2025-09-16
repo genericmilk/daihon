@@ -17,8 +17,8 @@ final class LogWindowController: NSObject {
         win.title = logState.title
         win.titleVisibility = .hidden
         win.titlebarAppearsTransparent = true
-        win.isOpaque = false
-        win.backgroundColor = .clear
+        win.isOpaque = true
+        win.backgroundColor = NSColor.windowBackgroundColor
         win.styleMask = [.titled, .closable, .resizable]
         let toolbar = NSToolbar(identifier: NSToolbar.Identifier("LogToolbar"))
         toolbar.showsBaselineSeparator = false
@@ -28,7 +28,9 @@ final class LogWindowController: NSObject {
         }
         win.isMovableByWindowBackground = true
         // Disable full screen behavior and zoom-to-fullscreen
-        win.collectionBehavior.remove([.fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling])
+        win.collectionBehavior.remove([
+            .fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling,
+        ])
         win.standardWindowButton(.zoomButton)?.isEnabled = false
         win.setContentSize(NSSize(width: 700, height: 400))
         win.center()

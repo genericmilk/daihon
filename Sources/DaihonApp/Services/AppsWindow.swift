@@ -19,8 +19,8 @@ final class AppsWindowController: NSObject, NSWindowDelegate {
         win.title = "Apps"
         win.titleVisibility = .hidden
         win.titlebarAppearsTransparent = true
-        win.isOpaque = false
-        win.backgroundColor = .clear
+        win.isOpaque = true
+        win.backgroundColor = NSColor.windowBackgroundColor
         win.styleMask = [.titled, .closable, .resizable]
         let toolbar = NSToolbar(identifier: NSToolbar.Identifier("AppsToolbar"))
         toolbar.showsBaselineSeparator = false
