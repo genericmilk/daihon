@@ -7,6 +7,7 @@ struct LogWindowView: View {
     @State private var logText: AttributedString = ""
     @State private var cancellable: AnyCancellable?
     @ObservedObject private var processManager = ProcessManager.shared
+    private let bottomAnchorID = "log-bottom-anchor"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -18,15 +19,20 @@ struct LogWindowView: View {
             Divider()
             ScrollViewReader { proxy in
                 ScrollView {
-                    Text(logText)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
-                        .id("bottom")
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(logText)
+                            .font(.system(.body, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                        // Invisible anchor at the end for robust autoscroll
+                        Color.clear.frame(height: 1).id(bottomAnchorID)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .background(Color(NSColor.textBackgroundColor))
+                .onAppear { scrollToBottom(proxy) }
                 .onChange(of: logText) { _ in
-                    withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                    scrollToBottom(proxy)
                 }
             }
         }
@@ -65,5 +71,14 @@ struct LogWindowView: View {
         var s = AttributedString(existing)
         s.font = .system(.body, design: .monospaced)
         logText = s
+    }
+
+    private func scrollToBottom(_ proxy: ScrollViewProxy) {
+        // Defer to next runloop to ensure layout is updated before scrolling
+        DispatchQueue.main.async {
+            withAnimation(.easeOut(duration: 0.1)) {
+                proxy.scrollTo(bottomAnchorID, anchor: .bottom)
+            }
+        }
     }
 }
