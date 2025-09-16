@@ -22,7 +22,8 @@ final class ProcessManager: ObservableObject {
         process.currentDirectoryURL = URL(fileURLWithPath: project.path)
         process.launchPath = "/bin/zsh"
         // Build command based on project's package manager (or global default)
-        let pm = project.effectivePackageManager(globalDefault: AppState.shared.preferences.packageManager)
+        let pm = project.effectivePackageManager(
+            globalDefault: AppState.shared.preferences.packageManager)
         let baseCmd = pm.commandToRun(script: escape(script.command))
         process.arguments = ["-lc", "\(baseCmd) 2>&1"]
 
@@ -38,10 +39,12 @@ final class ProcessManager: ObservableObject {
         let errHandle = errorPipe.fileHandleForReading
 
         // Announce start in persistent log
-        LogStore.shared.appendBoundary("process started", projectID: project.id, scriptID: script.id)
+        LogStore.shared.appendBoundary(
+            "process started", projectID: project.id, scriptID: script.id)
 
         // Announce start in persistent log
-        LogStore.shared.appendBoundary("process started", projectID: project.id, scriptID: script.id)
+        LogStore.shared.appendBoundary(
+            "process started", projectID: project.id, scriptID: script.id)
 
         outHandle.readabilityHandler = { handle in
             let data = handle.availableData
@@ -62,7 +65,8 @@ final class ProcessManager: ObservableObject {
 
         process.terminationHandler = { [weak self] _ in
             DispatchQueue.main.async {
-                LogStore.shared.appendBoundary("process exited", projectID: project.id, scriptID: script.id)
+                LogStore.shared.appendBoundary(
+                    "process exited", projectID: project.id, scriptID: script.id)
                 subject.send("\n— process exited —\n")
                 // Clean up handlers and mark not running
                 outHandle.readabilityHandler = nil

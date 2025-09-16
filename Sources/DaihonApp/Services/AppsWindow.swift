@@ -30,7 +30,9 @@ final class AppsWindowController: NSObject, NSWindowDelegate {
         }
         win.isMovableByWindowBackground = true
         // Disable full screen behavior and zoom-to-fullscreen
-        win.collectionBehavior.remove([.fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling])
+        win.collectionBehavior.remove([
+            .fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling,
+        ])
         win.standardWindowButton(.zoomButton)?.isEnabled = false
         win.setContentSize(NSSize(width: 760, height: 520))
         win.center()

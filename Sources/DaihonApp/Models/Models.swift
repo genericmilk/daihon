@@ -20,16 +20,19 @@ struct Project: Identifiable, Codable, Hashable {
     var name: String
     var path: String
     var scripts: [Script]
-    var packageManager: PackageManager? // nil means use global default
+    var packageManager: PackageManager?  // nil means use global default
 
-    init(id: UUID = UUID(), name: String, path: String, scripts: [Script] = [], packageManager: PackageManager? = nil) {
+    init(
+        id: UUID = UUID(), name: String, path: String, scripts: [Script] = [],
+        packageManager: PackageManager? = nil
+    ) {
         self.id = id
         self.name = name
         self.path = path
         self.scripts = scripts
         self.packageManager = packageManager
     }
-    
+
     /// Returns the effective package manager for this project (override or global default)
     func effectivePackageManager(globalDefault: PackageManager) -> PackageManager {
         return packageManager ?? globalDefault
@@ -117,7 +120,8 @@ final class AppState: ObservableObject {
     // MARK: - Preferences
     func loadPreferences() {
         if let data = try? Data(contentsOf: preferencesURL),
-           let decoded = try? JSONDecoder().decode(Preferences.self, from: data) {
+            let decoded = try? JSONDecoder().decode(Preferences.self, from: data)
+        {
             self.preferences = decoded
         }
     }

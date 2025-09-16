@@ -32,7 +32,9 @@ struct AppsView: View {
                                             }) {
                                                 Text(script.name).padding(4)
                                                     .background(
-                                                        isRunning ? Color.green.opacity(0.5) : Color.gray.opacity(0.15)
+                                                        isRunning
+                                                            ? Color.green.opacity(0.5)
+                                                            : Color.gray.opacity(0.15)
                                                     )
                                                     .cornerRadius(4)
                                             }
@@ -43,7 +45,9 @@ struct AppsView: View {
                             }
                             Spacer()
                             Button(action: {
-                                if let index = draftProjects.firstIndex(where: { $0.id == project.id }) {
+                                if let index = draftProjects.firstIndex(where: {
+                                    $0.id == project.id
+                                }) {
                                     draftProjects.remove(at: index)
                                 }
                             }) {
@@ -52,32 +56,37 @@ struct AppsView: View {
                             .buttonStyle(.plain)
                             .foregroundColor(.red)
                         }
-                        
+
                         // Package Manager Override Section
                         HStack {
                             Text("Package Manager:")
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
-                            
-                            Picker("Package Manager", selection: Binding(
-                                get: { project.packageManager?.rawValue ?? "global" },
-                                set: { newValue in
-                                    if newValue == "global" {
-                                        project.packageManager = nil
-                                    } else if let pm = PackageManager(rawValue: newValue) {
-                                        project.packageManager = pm
+
+                            Picker(
+                                "Package Manager",
+                                selection: Binding(
+                                    get: { project.packageManager?.rawValue ?? "global" },
+                                    set: { newValue in
+                                        if newValue == "global" {
+                                            project.packageManager = nil
+                                        } else if let pm = PackageManager(rawValue: newValue) {
+                                            project.packageManager = pm
+                                        }
                                     }
-                                }
-                            )) {
-                                Text("Global Default (\(state.preferences.packageManager.displayName))")
-                                    .tag("global")
+                                )
+                            ) {
+                                Text(
+                                    "Global Default (\(state.preferences.packageManager.displayName))"
+                                )
+                                .tag("global")
                                 ForEach(PackageManager.allCases) { pm in
                                     Text(pm.displayName).tag(pm.rawValue)
                                 }
                             }
                             .pickerStyle(.menu)
                             .frame(maxWidth: 200)
-                            
+
                             Spacer()
                         }
                     }
@@ -98,8 +107,9 @@ struct AppsView: View {
         .glassPanel(radius: 16)
         .padding(8)
         .onAppear { draftProjects = state.projects }
-        .alert(item: Binding(get: { alert.map { AppsAlertItem(msg: $0) } }, set: { _ in alert = nil }))
-        { a in
+        .alert(
+            item: Binding(get: { alert.map { AppsAlertItem(msg: $0) } }, set: { _ in alert = nil })
+        ) { a in
             Alert(title: Text("Error"), message: Text(a.msg))
         }
     }
@@ -110,7 +120,8 @@ struct AppsView: View {
         } else {
             processManager.start(script: script, in: project)
             let logState = ScriptLogState(
-                projectID: project.id, scriptID: script.id, title: "\(project.name): \(script.name)")
+                projectID: project.id, scriptID: script.id, title: "\(project.name): \(script.name)"
+            )
             state.activeLog = logState
             LogWindowController.shared.show(logState: logState)
         }
@@ -131,8 +142,8 @@ struct AppsView: View {
     func detectScripts(at url: URL) -> [Script] {
         let pkgPath = url.appendingPathComponent("package.json")
         guard let data = try? Data(contentsOf: pkgPath),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let scripts = obj["scripts"] as? [String: Any]
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let scripts = obj["scripts"] as? [String: Any]
         else { return [] }
         return scripts.keys.sorted().map { Script(name: $0, command: $0) }
     }

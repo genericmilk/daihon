@@ -27,11 +27,12 @@ struct PreferencesView: View {
     }
 
     private var versionString: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let version =
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
         switch (version, build) {
-        case let (v?, b?) where !b.isEmpty: return "Version \(v) (\(b))"
-        case let (v?, _): return "Version \(v)"
+        case (let v?, let b?) where !b.isEmpty: return "Version \(v) (\(b))"
+        case (let v?, _): return "Version \(v)"
         default: return "Version —"
         }
     }
@@ -54,8 +55,9 @@ struct PreferencesView: View {
             state.preferences.packageManager = value
             state.savePreferences()
         }
-        .alert(item: Binding(get: { alert.map { PrefAlertItem(msg: $0) } }, set: { _ in alert = nil }))
-        { a in
+        .alert(
+            item: Binding(get: { alert.map { PrefAlertItem(msg: $0) } }, set: { _ in alert = nil })
+        ) { a in
             Alert(title: Text("Error"), message: Text(a.msg))
         }
     }
@@ -85,11 +87,11 @@ struct PreferencesView: View {
                     .foregroundColor(.secondary)
 
                 #if DEBUG
-                Text("DEBUG BUILD")
-                    .font(.caption2)
-                    .foregroundColor(.orange)
-                    .fontWeight(.semibold)
-                    .padding(.top, 2)
+                    Text("DEBUG BUILD")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                        .fontWeight(.semibold)
+                        .padding(.top, 2)
                 #endif
 
                 // Copyright moved under version/debug text
@@ -134,14 +136,18 @@ struct PreferencesView: View {
     private var generalView: some View {
         GroupBox(label: Text("General")) {
             VStack(alignment: .leading, spacing: 12) {
-                Toggle(isOn: Binding(get: { startAtLogin }, set: { newValue in
-                    do {
-                        try LoginItemManager.shared.setEnabled(newValue)
-                        startAtLogin = newValue
-                    } catch {
-                        alert = "Failed to update login item: \(error.localizedDescription)"
-                    }
-                })) {
+                Toggle(
+                    isOn: Binding(
+                        get: { startAtLogin },
+                        set: { newValue in
+                            do {
+                                try LoginItemManager.shared.setEnabled(newValue)
+                                startAtLogin = newValue
+                            } catch {
+                                alert = "Failed to update login item: \(error.localizedDescription)"
+                            }
+                        })
+                ) {
                     Text("Start Daihon at login")
                 }
                 .toggleStyle(.switch)
@@ -170,22 +176,26 @@ struct PreferencesView: View {
                     Text(helpTextForPackageManager(selectedManager))
                         .font(.footnote)
                         .foregroundColor(.secondary)
-                        
-                    Text("This is the default package manager used for all apps. You can override this for individual apps in the Apps panel.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
+
+                    Text(
+                        "This is the default package manager used for all apps. You can override this for individual apps in the Apps panel."
+                    )
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 6)
             }
-            
+
             GroupBox(label: Text("Per-App Overrides")) {
                 VStack(alignment: .leading, spacing: 8) {
                     if state.projects.isEmpty {
-                        Text("No apps configured yet. Add apps in the Apps panel to set individual package managers.")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
+                        Text(
+                            "No apps configured yet. Add apps in the Apps panel to set individual package managers."
+                        )
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
                     } else {
                         ForEach(state.projects) { project in
                             HStack {
@@ -197,16 +207,20 @@ struct PreferencesView: View {
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
-                                
+
                                 Spacer()
-                                
-                                Text(project.packageManager?.displayName ?? "Global Default (\(selectedManager.displayName))")
-                                    .font(.footnote)
-                                    .foregroundColor(project.packageManager == nil ? .secondary : .primary)
+
+                                Text(
+                                    project.packageManager?.displayName
+                                        ?? "Global Default (\(selectedManager.displayName))"
+                                )
+                                .font(.footnote)
+                                .foregroundColor(
+                                    project.packageManager == nil ? .secondary : .primary)
                             }
                             .padding(.vertical, 2)
                         }
-                        
+
                         Text("Configure individual app package managers in the Apps panel.")
                             .font(.footnote)
                             .foregroundColor(.secondary)
@@ -244,9 +258,9 @@ private struct GlassSidebarBackground: ViewModifier {
     func body(content: Content) -> some View {
         Group {
             #if swift(>=6.0)
-            contentBackground(content)
+                contentBackground(content)
             #else
-            contentBackground(content)
+                contentBackground(content)
             #endif
         }
     }
