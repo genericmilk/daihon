@@ -107,7 +107,9 @@ struct PreferencesView: View {
                 Label(item.title, systemImage: iconName(for: item))
                     .tag(item)
             }
-            .listStyle(SidebarListStyle())
+            .listStyle(.plain)
+            .background(Color.clear)
+            .scrollContentBackground(.hidden)
             .frame(minWidth: 200)
 
             Spacer(minLength: 0)
@@ -256,22 +258,8 @@ struct PrefAlertItem: Identifiable {
 
 private struct GlassSidebarBackground: ViewModifier {
     func body(content: Content) -> some View {
-        Group {
-            #if swift(>=6.0)
-                contentBackground(content)
-            #else
-                contentBackground(content)
-            #endif
-        }
-    }
-
-    @ViewBuilder
-    private func contentBackground(_ content: Content) -> some View {
-        // Prefer our platform-aware glass background (uses Liquid Glass on macOS 26 when enabled)
         content
             .background(Color.clear)
-            .platformGlassBackground(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .padding(8)
     }
 }
 
