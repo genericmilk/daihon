@@ -106,10 +106,14 @@ struct PreferencesView: View {
             List(PrefTab.allCases, selection: $tab) { item in
                 Label(item.title, systemImage: iconName(for: item))
                     .tag(item)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
             }
             .listStyle(.plain)
             .background(Color.clear)
             .scrollContentBackground(.hidden)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
             .frame(minWidth: 200)
 
             Spacer(minLength: 0)
@@ -259,7 +263,7 @@ struct PrefAlertItem: Identifiable {
 private struct GlassSidebarBackground: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .background(Color.clear)
+            .platformGlassBackground(in: Rectangle())
     }
 }
 

@@ -23,20 +23,20 @@ extension View {
     @ViewBuilder
     func platformGlassBackground<S: Shape>(in shape: S) -> some View {
         #if LIQUID_GLASS
-        if #available(macOS 26.0, *) {
-            // Native Liquid Glass on newer macOS SDKs
-            self.glassBackgroundEffect(in: shape)
-        } else if #available(macOS 15.0, *) {
-            self.background(shape.fill(.thinMaterial))
-        } else {
-            self.background(shape.fill(.ultraThinMaterial))
-        }
+            if #available(macOS 26.0, *) {
+                // Native Liquid Glass on newer macOS SDKs
+                self.glassEffect(in: shape)
+            } else if #available(macOS 15.0, *) {
+                self.background(shape.fill(.thinMaterial))
+            } else {
+                self.background(shape.fill(.ultraThinMaterial))
+            }
         #else
-        if #available(macOS 15.0, *) {
-            self.background(shape.fill(.thinMaterial))
-        } else {
-            self.background(shape.fill(.ultraThinMaterial))
-        }
+            if #available(macOS 15.0, *) {
+                self.background(shape.fill(.thinMaterial))
+            } else {
+                self.background(shape.fill(.ultraThinMaterial))
+            }
         #endif
     }
 }
