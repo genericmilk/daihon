@@ -43,7 +43,7 @@ close_existing_daihon() {
   
   # Find and kill any running Daihon processes
   local PIDS
-  PIDS=$(pgrep -f "DaihonApp\|Daihon\.app" 2>/dev/null || true)
+  PIDS=$(pgrep -f "DaihonApp" 2>/dev/null || pgrep -f "Daihon\.app" 2>/dev/null || true)
   
   if [[ -n "$PIDS" ]]; then
     echo "==> Found running Daihon instances, closing them..."
@@ -58,7 +58,7 @@ close_existing_daihon() {
     sleep 2
     
     # Force kill if still running
-    PIDS=$(pgrep -f "DaihonApp\|Daihon\.app" 2>/dev/null || true)
+    PIDS=$(pgrep -f "DaihonApp" 2>/dev/null || pgrep -f "Daihon\.app" 2>/dev/null || true)
     if [[ -n "$PIDS" ]]; then
       echo "==> Force closing remaining instances..."
       echo "$PIDS" | while read -r PID; do
