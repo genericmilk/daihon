@@ -7,6 +7,7 @@ Features
 - Start/Stop scripts in the background (zsh + npm run <script>)
 - Live tailing logs per running script
 - Preferences to add projects (auto-detects scripts from package.json)
+ - Persistent logs: output is saved while running even if the log window is closed or the script is restarted
 
 Requirements
 - macOS 13+
@@ -28,3 +29,4 @@ Usage
 Notes
 - Environment: The app launches zsh with `-lc`, which loads your shell init and PATH.
 - Persistence: Projects are saved to `~/Library/Application Support/Daihon/projects.json`.
+ - Logs: Per-script logs are saved under `~/Library/Application Support/Daihon/Logs/<projectID>/<scriptID>.log`. Use the "Clear" button in the Logs window to truncate.

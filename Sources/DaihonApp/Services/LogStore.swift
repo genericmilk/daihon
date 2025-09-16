@@ -1,0 +1,82 @@
+import Foundation
+
+final class LogStore {
+    static let shared = LogStore()
+
+    private let fm = FileManager.default
+    private let queue = DispatchQueue(label: "LogStore.serial")
+
+    private init() {}
+
+    // MARK: - Public API
+    func append(_ text: String, projectID: UUID, scriptID: UUID) {
+        let url = logURL(projectID: projectID, scriptID: scriptID)
+        queue.async {
+            self.ensureParentDirectory(for: url)
+            if let data = text.data(using: .utf8) {
+                if self.fm.fileExists(atPath: url.path) {
+                    do {
+                        let handle = try FileHandle(forWritingTo: url)
+                        defer { try? handle.close() }
+                        try handle.seekToEnd()
+                        try handle.write(contentsOf: data)
+                    } catch {
+                        // Ignore write errors for now to avoid UI disruption
+                    }
+                } else {
+                    do {
+                        try data.write(to: url)
+                    } catch {
+                        // Ignore write errors for now
+                    }
+                }
+            }
+        }
+    }
+
+    func read(projectID: UUID, scriptID: UUID) -> String {
+        let url = logURL(projectID: projectID, scriptID: scriptID)
+        return (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+    }
+
+    func clear(projectID: UUID, scriptID: UUID) {
+        let url = logURL(projectID: projectID, scriptID: scriptID)
+        queue.async {
+            try? "".write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+
+    func appendBoundary(_ event: String, projectID: UUID, scriptID: UUID) {
+        let stamp = Self.timestamp()
+        append("\n— \(event) — \(stamp)\n", projectID: projectID, scriptID: scriptID)
+    }
+
+    // MARK: - Paths
+    private func baseLogsDirectory() -> URL {
+        let dir = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let appDir = dir.appendingPathComponent("Daihon", isDirectory: true)
+        let logsDir = appDir.appendingPathComponent("Logs", isDirectory: true)
+        try? fm.createDirectory(at: logsDir, withIntermediateDirectories: true)
+        return logsDir
+    }
+
+    private func logURL(projectID: UUID, scriptID: UUID) -> URL {
+        baseLogsDirectory()
+            .appendingPathComponent(projectID.uuidString, isDirectory: true)
+            .appendingPathComponent("\(scriptID.uuidString).log", isDirectory: false)
+    }
+
+    private func ensureParentDirectory(for url: URL) {
+        let parent = url.deletingLastPathComponent()
+        if !fm.fileExists(atPath: parent.path) {
+            try? fm.createDirectory(at: parent, withIntermediateDirectories: true)
+        }
+    }
+
+    private static func timestamp() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return f.string(from: Date())
+    }
+}
+

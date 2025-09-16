@@ -6,6 +6,7 @@ struct LogWindowView: View {
     let logState: ScriptLogState
     @State private var logText: AttributedString = ""
     @State private var cancellable: AnyCancellable?
+    @ObservedObject private var processManager = ProcessManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -29,11 +30,22 @@ struct LogWindowView: View {
                 }
             }
         }
-        .onAppear { subscribe() }
+        .onAppear {
+            loadPersisted()
+            subscribe()
+        }
         .onDisappear { cancellable?.cancel() }
+        .onReceive(processManager.$running) { _ in
+            // When the process restarts, re-subscribe to new publisher
+            cancellable?.cancel()
+            subscribe()
+        }
         .toolbar {
             ToolbarItem(placement: .automatic) {
-                Button("Clear") { logText = "" }
+                Button("Clear") {
+                    LogStore.shared.clear(projectID: logState.projectID, scriptID: logState.scriptID)
+                    logText = ""
+                }
             }
         }
     }
@@ -45,8 +57,13 @@ struct LogWindowView: View {
                 s.font = .system(.body, design: .monospaced)
                 logText.append(s)
             }
-        } else {
-            logText = "No running process."
         }
+    }
+
+    private func loadPersisted() {
+        let existing = LogStore.shared.read(projectID: logState.projectID, scriptID: logState.scriptID)
+        var s = AttributedString(existing)
+        s.font = .system(.body, design: .monospaced)
+        logText = s
     }
 }

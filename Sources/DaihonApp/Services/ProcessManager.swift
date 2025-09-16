@@ -8,10 +8,10 @@ final class ProcessManager: ObservableObject {
         let process: Process
         let outputPipe: Pipe
         let errorPipe: Pipe
-        let logSubject: PassthroughSubject<String, Never>
     }
 
     @Published private(set) var running: [UUID: RunningProcess] = [:]  // key: Script.id
+    private var subjects: [UUID: PassthroughSubject<String, Never>] = [:]
 
     private init() {}
 
@@ -31,14 +31,23 @@ final class ProcessManager: ObservableObject {
         process.standardOutput = outputPipe
         process.standardError = errorPipe
 
-        let subject = PassthroughSubject<String, Never>()
+        // Reuse a persistent subject so the UI doesn't lose subscription across restarts
+        let subject = self.subject(for: script.id)
 
         let outHandle = outputPipe.fileHandleForReading
         let errHandle = errorPipe.fileHandleForReading
 
+        // Announce start in persistent log
+        LogStore.shared.appendBoundary("process started", projectID: project.id, scriptID: script.id)
+
+        // Announce start in persistent log
+        LogStore.shared.appendBoundary("process started", projectID: project.id, scriptID: script.id)
+
         outHandle.readabilityHandler = { handle in
             let data = handle.availableData
             if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
+                // Persist first, then emit to subscribers
+                LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
                 subject.send(str)
             }
         }
@@ -46,14 +55,18 @@ final class ProcessManager: ObservableObject {
         errHandle.readabilityHandler = { handle in
             let data = handle.availableData
             if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
+                LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
                 subject.send(str)
             }
         }
 
         process.terminationHandler = { [weak self] _ in
             DispatchQueue.main.async {
+                LogStore.shared.appendBoundary("process exited", projectID: project.id, scriptID: script.id)
                 subject.send("\n— process exited —\n")
-                subject.send(completion: .finished)
+                // Clean up handlers and mark not running
+                outHandle.readabilityHandler = nil
+                errHandle.readabilityHandler = nil
                 self?.running.removeValue(forKey: script.id)
             }
         }
@@ -61,15 +74,16 @@ final class ProcessManager: ObservableObject {
         do {
             try process.run()
             running[script.id] = RunningProcess(
-                process: process, outputPipe: outputPipe, errorPipe: errorPipe, logSubject: subject)
+                process: process, outputPipe: outputPipe, errorPipe: errorPipe)
         } catch {
             subject.send("Failed to start: \(error.localizedDescription)\n")
-            subject.send(completion: .finished)
         }
     }
 
     func stop(scriptID: UUID) {
         guard let r = running[scriptID] else { return }
+        r.outputPipe.fileHandleForReading.readabilityHandler = nil
+        r.errorPipe.fileHandleForReading.readabilityHandler = nil
         r.process.terminate()
         r.process.waitUntilExit()
         running.removeValue(forKey: scriptID)
@@ -88,10 +102,19 @@ final class ProcessManager: ObservableObject {
     }
 
     func logsPublisher(for scriptID: UUID) -> AnyPublisher<String, Never>? {
-        running[scriptID]?.logSubject.eraseToAnyPublisher()
+        // Only expose a publisher when running to preserve existing isRunning checks elsewhere
+        guard running[scriptID] != nil else { return nil }
+        return subject(for: scriptID).eraseToAnyPublisher()
     }
 
     private func escape(_ s: String) -> String {
         s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    private func subject(for scriptID: UUID) -> PassthroughSubject<String, Never> {
+        if let s = subjects[scriptID] { return s }
+        let s = PassthroughSubject<String, Never>()
+        subjects[scriptID] = s
+        return s
     }
 }
