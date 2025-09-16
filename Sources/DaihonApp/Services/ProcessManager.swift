@@ -21,8 +21,8 @@ final class ProcessManager: ObservableObject {
         let process = Process()
         process.currentDirectoryURL = URL(fileURLWithPath: project.path)
         process.launchPath = "/bin/zsh"
-        // Build command based on preferred package manager and merge stderr to stdout
-        let pm = AppState.shared.preferences.packageManager
+        // Build command based on project's package manager (or global default)
+        let pm = project.effectivePackageManager(globalDefault: AppState.shared.preferences.packageManager)
         let baseCmd = pm.commandToRun(script: escape(script.command))
         process.arguments = ["-lc", "\(baseCmd) 2>&1"]
 

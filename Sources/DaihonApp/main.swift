@@ -229,7 +229,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
         }
         // Footer
         let manageItem = NSMenuItem(
-            title: "Sites…", action: #selector(openSites), keyEquivalent: "s")
+            title: "Apps…", action: #selector(openApps), keyEquivalent: "s")
         menu.addItem(manageItem)
         menu.addItem(
             withTitle: "Preferences…", action: #selector(openPreferences), keyEquivalent: ",")
@@ -318,7 +318,7 @@ extension AppDelegate {
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
-        menu.addItem(withTitle: "Sites…", action: #selector(openSites), keyEquivalent: "s")
+        menu.addItem(withTitle: "Apps…", action: #selector(openApps), keyEquivalent: "s")
         menu.addItem(
             withTitle: "Preferences…", action: #selector(openPreferences), keyEquivalent: ",")
         menu.addItem(.separator())
@@ -330,8 +330,8 @@ extension AppDelegate {
         PreferencesWindowController.shared.show()
     }
 
-    @objc private func openSites() {
-        SitesWindowController.shared.show()
+    @objc private func openApps() {
+        AppsWindowController.shared.show()
     }
 
     @objc private func quit() {

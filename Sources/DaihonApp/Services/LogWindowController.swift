@@ -15,7 +15,21 @@ final class LogWindowController: NSObject {
         let hosting = NSHostingController(rootView: LogWindowView(logState: logState))
         let win = NSWindow(contentViewController: hosting)
         win.title = logState.title
-        win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        win.titleVisibility = .hidden
+        win.titlebarAppearsTransparent = true
+        win.isOpaque = false
+        win.backgroundColor = .clear
+        win.styleMask = [.titled, .closable, .resizable]
+        let toolbar = NSToolbar(identifier: NSToolbar.Identifier("LogToolbar"))
+        toolbar.showsBaselineSeparator = false
+        win.toolbar = toolbar
+        if #available(macOS 11.0, *) {
+            win.toolbarStyle = .unifiedCompact
+        }
+        win.isMovableByWindowBackground = true
+        // Disable full screen behavior and zoom-to-fullscreen
+        win.collectionBehavior.remove([.fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling])
+        win.standardWindowButton(.zoomButton)?.isEnabled = false
         win.setContentSize(NSSize(width: 700, height: 400))
         win.center()
         win.isReleasedWhenClosed = false

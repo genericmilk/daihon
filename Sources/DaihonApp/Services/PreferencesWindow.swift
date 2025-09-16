@@ -19,6 +19,8 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate {
         win.title = "Preferences"
         win.titleVisibility = .hidden
         win.titlebarAppearsTransparent = true
+        win.isOpaque = false
+        win.backgroundColor = .clear
         win.styleMask = [.titled, .closable, .resizable]
         let toolbar = NSToolbar(identifier: NSToolbar.Identifier("PreferencesToolbar"))
         toolbar.showsBaselineSeparator = false

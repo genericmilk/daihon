@@ -37,9 +37,8 @@ struct PreferencesView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             sidebar
-            Divider()
             content
         }
         .onAppear {
@@ -128,6 +127,8 @@ struct PreferencesView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .glassPanel(radius: 16)
+        .padding(.trailing, 8)
     }
 
     private var generalView: some View {
@@ -155,22 +156,66 @@ struct PreferencesView: View {
     }
 
     private var packagesView: some View {
-        GroupBox(label: Text("Package Manager")) {
-            VStack(alignment: .leading, spacing: 8) {
-                Picker("Preferred tool", selection: $selectedManager) {
-                    ForEach(PackageManager.allCases) { pm in
-                        Text(pm.displayName).tag(pm)
+        VStack(alignment: .leading, spacing: 16) {
+            GroupBox(label: Text("Global Default Package Manager")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("Default tool", selection: $selectedManager) {
+                        ForEach(PackageManager.allCases) { pm in
+                            Text(pm.displayName).tag(pm)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(helpTextForPackageManager(selectedManager))
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        
+                    Text("This is the default package manager used for all apps. You can override this for individual apps in the Apps panel.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 6)
+            }
+            
+            GroupBox(label: Text("Per-App Overrides")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    if state.projects.isEmpty {
+                        Text("No apps configured yet. Add apps in the Apps panel to set individual package managers.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(state.projects) { project in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(project.name)
+                                        .font(.footnote)
+                                        .fontWeight(.medium)
+                                    Text(project.path)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                Text(project.packageManager?.displayName ?? "Global Default (\(selectedManager.displayName))")
+                                    .font(.footnote)
+                                    .foregroundColor(project.packageManager == nil ? .secondary : .primary)
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        
+                        Text("Configure individual app package managers in the Apps panel.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
                     }
                 }
-                .pickerStyle(.segmented)
                 .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text(helpTextForPackageManager(selectedManager))
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
+                .padding(.vertical, 6)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
@@ -208,33 +253,18 @@ private struct GlassSidebarBackground: ViewModifier {
 
     @ViewBuilder
     private func contentBackground(_ content: Content) -> some View {
-        if #available(macOS 15.0, *) {
-            // Prefer Liquid Glass when available
-            content
-                .background(Color.clear)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                // Use glass-style background when available (macOS 15+)
-                .modifier(_GlassBackgroundCompat())
-                .padding(8)
-        } else {
-            // Fallback to material on older macOS
-            content
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        }
+        // Prefer our platform-aware glass background (uses Liquid Glass on macOS 26 when enabled)
+        content
+            .background(Color.clear)
+            .platformGlassBackground(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .padding(8)
     }
 }
 
-// A tiny shim to keep references to Liquid Glass APIs isolated.
+// Kept for compatibility; no-op wrapper now that we have platformGlassBackground.
 @available(macOS 15.0, *)
 private struct _GlassBackgroundCompat: ViewModifier {
-    func body(content: Content) -> some View {
-        // As Apple’s APIs evolve, prefer glassEffect or glassBackgroundEffect here.
-        // Using background modifier to avoid compile-time issues on older SDKs.
-        // Replace with `.glassEffect()` or `.glassBackgroundEffect(in:)` when supported by toolchain.
-        content
-            .background(.thinMaterial)
-    }
+    func body(content: Content) -> some View { content }
 }
 
 // MARK: - Helpers

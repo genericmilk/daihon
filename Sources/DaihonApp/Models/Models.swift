@@ -20,12 +20,19 @@ struct Project: Identifiable, Codable, Hashable {
     var name: String
     var path: String
     var scripts: [Script]
+    var packageManager: PackageManager? // nil means use global default
 
-    init(id: UUID = UUID(), name: String, path: String, scripts: [Script] = []) {
+    init(id: UUID = UUID(), name: String, path: String, scripts: [Script] = [], packageManager: PackageManager? = nil) {
         self.id = id
         self.name = name
         self.path = path
         self.scripts = scripts
+        self.packageManager = packageManager
+    }
+    
+    /// Returns the effective package manager for this project (override or global default)
+    func effectivePackageManager(globalDefault: PackageManager) -> PackageManager {
+        return packageManager ?? globalDefault
     }
 }
 

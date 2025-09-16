@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-final class SitesWindowController: NSObject, NSWindowDelegate {
-    static let shared = SitesWindowController()
+final class AppsWindowController: NSObject, NSWindowDelegate {
+    static let shared = AppsWindowController()
 
     private var window: NSWindow?
 
@@ -13,14 +13,16 @@ final class SitesWindowController: NSObject, NSWindowDelegate {
             return
         }
 
-        let hosting = NSHostingController(rootView: SitesView())
+        let hosting = NSHostingController(rootView: AppsView())
         let win = NSWindow(contentViewController: hosting)
         // Style: no visible title bar, inset traffic lights, not full-screenable
-        win.title = "Sites"
+        win.title = "Apps"
         win.titleVisibility = .hidden
         win.titlebarAppearsTransparent = true
+        win.isOpaque = false
+        win.backgroundColor = .clear
         win.styleMask = [.titled, .closable, .resizable]
-        let toolbar = NSToolbar(identifier: NSToolbar.Identifier("SitesToolbar"))
+        let toolbar = NSToolbar(identifier: NSToolbar.Identifier("AppsToolbar"))
         toolbar.showsBaselineSeparator = false
         win.toolbar = toolbar
         if #available(macOS 11.0, *) {
@@ -35,7 +37,7 @@ final class SitesWindowController: NSObject, NSWindowDelegate {
         win.isReleasedWhenClosed = false
         win.delegate = self
         win.makeKeyAndOrderFront(nil)
-        // Show app in Dock while Sites is visible
+        // Show app in Dock while Apps is visible
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         self.window = win
@@ -47,7 +49,7 @@ final class SitesWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         window = nil
-        // Return to status-bar-only: hide Dock icon when Sites closes
+        // Return to status-bar-only: hide Dock icon when Apps closes
         NSApp.setActivationPolicy(.accessory)
     }
 }

@@ -29,13 +29,15 @@ struct LogWindowView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .background(Color(NSColor.textBackgroundColor))
+                .background(Color.clear)
                 .onAppear { scrollToBottom(proxy) }
                 .onChange(of: logText) { _ in
                     scrollToBottom(proxy)
                 }
             }
         }
+        .padding(12)
+        .glassPanel(radius: 16)
         .onAppear {
             loadPersisted()
             subscribe()
