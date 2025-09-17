@@ -38,10 +38,12 @@ struct PreferencesView: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 20) {
             sidebar
             content
         }
+        .padding(20)
+        .frame(maxHeight: .infinity)
         .onAppear {
             startAtLogin = LoginItemManager.shared.isEnabled
             showNotifications = state.preferences.showNotifications
@@ -118,9 +120,10 @@ struct PreferencesView: View {
 
             Spacer(minLength: 0)
         }
-        .background(Color.clear)
-        .modifier(GlassSidebarBackground())
-        .frame(width: 240)
+        .padding(20)
+        .frame(width: 240, alignment: .top)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .glassPanel(radius: 16)
     }
 
     private var content: some View {
@@ -133,10 +136,10 @@ struct PreferencesView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .glassPanel(radius: 16)
-        .padding(.trailing, 8)
     }
 
     private var generalView: some View {

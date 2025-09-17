@@ -7,9 +7,14 @@ struct GlassPanelBackground: ViewModifier {
     var cornerRadius: CGFloat = 16
 
     func body(content: Content) -> some View {
-        content.platformGlassBackground(
-            in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        )
+        content
+            .platformGlassBackground(
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+            )
     }
 }
 
@@ -22,8 +27,7 @@ extension View {
     /// Use Liquid Glass if available at compile- and runtime, else fall back to materials.
     @ViewBuilder
     func platformGlassBackground<S: Shape>(in shape: S) -> some View {
-        #if LIQUID_GLASS
-            if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, *) {
                 // Native Liquid Glass on newer macOS SDKs
                 self.glassEffect(in: shape)
             } else if #available(macOS 15.0, *) {
@@ -31,12 +35,5 @@ extension View {
             } else {
                 self.background(shape.fill(.ultraThinMaterial))
             }
-        #else
-            if #available(macOS 15.0, *) {
-                self.background(shape.fill(.thinMaterial))
-            } else {
-                self.background(shape.fill(.ultraThinMaterial))
-            }
-        #endif
     }
 }
