@@ -105,17 +105,15 @@ struct PreferencesView: View {
             .padding(.vertical, 20)
 
             // Navigation items styled like musumo
-            List(PrefTab.allCases, selection: $tab) { item in
-                Label(item.title, systemImage: iconName(for: item))
-                    .tag(item)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(PrefTab.allCases) { item in
+                        sidebarRow(for: item)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
-            .listStyle(.plain)
-            .background(Color.clear)
-            .scrollContentBackground(.hidden)
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
             .frame(minWidth: 200)
 
             Spacer(minLength: 0)
@@ -140,6 +138,31 @@ struct PreferencesView: View {
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .glassPanel(radius: 16)
+    }
+
+    private func sidebarRow(for item: PrefTab) -> some View {
+        let isSelected = item == tab
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        return Button {
+            tab = item
+        } label: {
+            Label(item.title, systemImage: iconName(for: item))
+                .labelStyle(.titleAndIcon)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundColor(isSelected ? .accentColor : .primary)
+                .background(
+                    shape.fill(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
+                )
+                .overlay(
+                    shape.stroke(isSelected ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 1)
+                )
+                .clipShape(shape)
+                .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .animation(.easeOut(duration: 0.15), value: isSelected)
     }
 
     private var generalView: some View {
