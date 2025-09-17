@@ -19,16 +19,16 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate {
         win.title = "Preferences"
         win.titleVisibility = .hidden
         win.titlebarAppearsTransparent = true
-        win.isOpaque = true
-        win.backgroundColor = NSColor.windowBackgroundColor
-        win.styleMask = [.titled, .closable, .resizable]
+        win.isOpaque = false
+        win.backgroundColor = .clear
+        win.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
         let toolbar = NSToolbar(identifier: NSToolbar.Identifier("PreferencesToolbar"))
         toolbar.showsBaselineSeparator = false
         win.toolbar = toolbar
         if #available(macOS 11.0, *) {
             win.toolbarStyle = .unifiedCompact
         }
-        win.isMovableByWindowBackground = true
+        win.isMovableByWindowBackground = false
         // Disable full screen behavior and zoom-to-fullscreen
         win.collectionBehavior.remove([
             .fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling,

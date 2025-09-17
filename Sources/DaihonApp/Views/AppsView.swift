@@ -49,6 +49,7 @@ struct AppsView: View {
                                     $0.id == project.id
                                 }) {
                                     draftProjects.remove(at: index)
+                                    saveProjects()
                                 }
                             }) {
                                 Image(systemName: "trash")
@@ -92,21 +93,21 @@ struct AppsView: View {
                     }
                     .padding(.vertical, 4)
                 }
-                .onDelete { idx in draftProjects.remove(atOffsets: idx) }
+                .onDelete { idx in
+                    draftProjects.remove(atOffsets: idx)
+                    saveProjects()
+                }
             }
-            .listStyle(.inset)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .listRowBackground(Color.clear)
             .background(Color.clear)
-            HStack(alignment: .center) {
-                Spacer()
-                Button("Cancel") { close(false) }
-                Button("Save") { close(true) }
-                    .keyboardShortcut(.defaultAction)
-            }
         }
         .padding(16)
         .glassPanel(radius: 16)
-        .padding(8)
+        .padding(12)
         .onAppear { draftProjects = state.projects }
+        .onDisappear { saveProjects() }
         .alert(
             item: Binding(get: { alert.map { AppsAlertItem(msg: $0) } }, set: { _ in alert = nil })
         ) { a in
@@ -136,6 +137,7 @@ struct AppsView: View {
             let name = url.lastPathComponent
             let scripts = detectScripts(at: url)
             draftProjects.append(Project(name: name, path: url.path, scripts: scripts))
+            saveProjects()
         }
     }
 
@@ -148,12 +150,9 @@ struct AppsView: View {
         return scripts.keys.sorted().map { Script(name: $0, command: $0) }
     }
 
-    func close(_ save: Bool) {
-        if save {
-            state.projects = draftProjects
-            state.save()
-        }
-        AppsWindowController.shared.close()
+    private func saveProjects() {
+        state.projects = draftProjects
+        state.save()
     }
 }
 

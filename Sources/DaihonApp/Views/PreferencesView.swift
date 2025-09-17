@@ -57,6 +57,12 @@ struct PreferencesView: View {
             state.preferences.packageManager = value
             state.savePreferences()
         }
+        .background {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(0.85)
+                .ignoresSafeArea()
+        }
         .alert(
             item: Binding(get: { alert.map { PrefAlertItem(msg: $0) } }, set: { _ in alert = nil })
         ) { a in
@@ -144,7 +150,9 @@ struct PreferencesView: View {
         let isSelected = item == tab
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         return Button {
-            tab = item
+            withAnimation(.easeOut(duration: 0.18)) {
+                tab = item
+            }
         } label: {
             Label(item.title, systemImage: iconName(for: item))
                 .labelStyle(.titleAndIcon)
@@ -156,17 +164,17 @@ struct PreferencesView: View {
                     shape.fill(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
                 )
                 .overlay(
-                    shape.stroke(isSelected ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 1)
+                    shape.stroke(
+                        isSelected ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 1)
                 )
                 .clipShape(shape)
                 .contentShape(shape)
         }
         .buttonStyle(.plain)
-        .animation(.easeOut(duration: 0.15), value: isSelected)
     }
 
     private var generalView: some View {
-        GroupBox(label: Text("General")) {
+        GroupBox(label: sectionHeader("General")) {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle(
                     isOn: Binding(
@@ -195,7 +203,7 @@ struct PreferencesView: View {
 
     private var packagesView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            GroupBox(label: Text("Global Default Package Manager")) {
+            GroupBox(label: sectionHeader("Global Default Package Manager")) {
                 VStack(alignment: .leading, spacing: 8) {
                     Picker("Default tool", selection: $selectedManager) {
                         ForEach(PackageManager.allCases) { pm in
@@ -220,7 +228,7 @@ struct PreferencesView: View {
                 .padding(.vertical, 6)
             }
 
-            GroupBox(label: Text("Per-App Overrides")) {
+            GroupBox(label: sectionHeader("Per-App Overrides")) {
                 VStack(alignment: .leading, spacing: 8) {
                     if state.projects.isEmpty {
                         Text(
@@ -305,4 +313,13 @@ private func iconName(for tab: PrefTab) -> String {
     case .general: return "gearshape"
     case .packages: return "shippingbox"
     }
+}
+
+@ViewBuilder
+private func sectionHeader(_ title: String) -> some View {
+    Text(title)
+        .font(.system(size: 14, weight: .semibold))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, 4)
+        .padding(.bottom, 10)
 }

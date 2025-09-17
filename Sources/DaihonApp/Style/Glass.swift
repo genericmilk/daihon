@@ -13,7 +13,7 @@ struct GlassPanelBackground: ViewModifier {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                    .stroke(Color.primary.opacity(0.04), lineWidth: 1)
             )
     }
 }
@@ -31,9 +31,9 @@ extension View {
                 // Native Liquid Glass on newer macOS SDKs
                 self.glassEffect(in: shape)
             } else if #available(macOS 15.0, *) {
-                self.background(shape.fill(.thinMaterial))
+                self.background(shape.fill(.ultraThinMaterial).opacity(0.82))
             } else {
-                self.background(shape.fill(.ultraThinMaterial))
+                self.background(shape.fill(.ultraThinMaterial).opacity(0.82))
             }
     }
 }
