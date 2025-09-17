@@ -4,12 +4,14 @@ import SwiftUI
 struct AppsView: View {
     @ObservedObject var state = AppState.shared
     @State private var draftProjects: [Project] = []
+    @State private var searchText: String = ""
     @ObservedObject var processManager = ProcessManager.shared
     @State private var alert: String? = nil
+    @State private var maxCardHeight: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .center) {
+            HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Apps")
                         .font(.title2)
@@ -19,6 +21,7 @@ struct AppsView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
+                searchField
                 Button {
                     addProject()
                 } label: {
@@ -30,12 +33,40 @@ struct AppsView: View {
 
             ScrollView {
                 let columns = [GridItem(.adaptive(minimum: 340), spacing: 16)]
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
-                    ForEach($draftProjects) { $project in
-                        projectCard(for: $project)
+                let filteredIndices = draftProjects.indices.filter { index in
+                    matchesSearch(draftProjects[index])
+                }
+
+                if filteredIndices.isEmpty {
+                    VStack(spacing: 8) {
+                        Text(searchText.isEmpty ? "No apps configured yet." : "No apps match \"\(searchText)\".")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                        if searchText.isEmpty {
+                            Text("Use Add App to configure your first project.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 40)
+                } else {
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+                        ForEach(filteredIndices, id: \.self) { index in
+                            projectCard(for: $draftProjects[index])
+                                .frame(minHeight: maxCardHeight > 0 ? maxCardHeight : nil)
+                                .background(
+                                    GeometryReader { proxy in
+                                        Color.clear.preference(key: CardHeightPreferenceKey.self, value: proxy.size.height)
+                                    }
+                                )
+                        }
+                    }
+                    .padding(.top, 4)
+                    .onPreferenceChange(CardHeightPreferenceKey.self) { newValue in
+                        maxCardHeight = newValue
                     }
                 }
-                .padding(.top, 4)
             }
         }
         .padding(24)
@@ -48,6 +79,8 @@ struct AppsView: View {
         }
         .onAppear { draftProjects = state.projects }
         .onDisappear { saveProjects() }
+        .onChange(of: searchText) { _ in maxCardHeight = 0 }
+        .onChange(of: draftProjects.count) { _ in maxCardHeight = 0 }
         .alert(
             item: Binding(get: { alert.map { AppsAlertItem(msg: $0) } }, set: { _ in alert = nil })
         ) { a in
@@ -63,6 +96,7 @@ struct AppsView: View {
             projectCardHeader(for: project, displayPackageManager: displayPackageManager)
             Divider()
             scriptsSection(for: project)
+            Spacer(minLength: 0)
             projectCardFooter(for: project)
         }
         .padding(18)
@@ -333,4 +367,43 @@ struct AppsView: View {
 struct AppsAlertItem: Identifiable {
     let id = UUID()
     let msg: String
+}
+
+// MARK: - Search & Layout Helpers
+
+extension AppsView {
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            TextField("Search", text: $searchText)
+                .textFieldStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
+        .frame(width: 220)
+    }
+
+    private func matchesSearch(_ project: Project) -> Bool {
+        guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return true }
+        let query = searchText.lowercased()
+        return project.name.lowercased().contains(query)
+            || project.path.lowercased().contains(query)
+            || project.packageManager?.displayName.lowercased().contains(query) == true
+    }
+}
+
+private struct CardHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
 }
