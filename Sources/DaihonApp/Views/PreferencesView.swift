@@ -73,12 +73,12 @@ struct PreferencesView: View {
     private var sidebar: some View {
         VStack(spacing: 0) {
             // Header styled like musumo
-            VStack(spacing: 8) {
+            VStack(spacing: 9) {
                 if let icon = NSApp.applicationIconImage {
                     Image(nsImage: icon)
                         .resizable()
                         .interpolation(.high)
-                        .frame(width: 70, height: 70)
+                        .frame(width: 90, height: 90)
                         .cornerRadius(14)
                 } else {
                     Image(systemName: "app")
@@ -197,6 +197,7 @@ struct PreferencesView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
+            .padding(.leading, 4)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
@@ -226,6 +227,7 @@ struct PreferencesView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 6)
+                .padding(.leading, 4)
             }
 
             GroupBox(label: sectionHeader("Per-App Overrides")) {
@@ -269,6 +271,7 @@ struct PreferencesView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 6)
+                .padding(.leading, 4)
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)

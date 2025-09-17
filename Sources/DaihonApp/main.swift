@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import UserNotifications
 
 @main
 struct DaihonAppMain: App {
@@ -19,7 +20,7 @@ struct DaihonAppMain: App {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var statusItem: NSStatusItem!
     private var cancellables: Set<AnyCancellable> = []
 
@@ -27,8 +28,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
         // Start as a status bar app (no Dock) and elevate to Dock when needed (e.g., Preferences)
         NSApp.setActivationPolicy(.accessory)
 
-        // Configure notification center delegate
-        NSUserNotificationCenter.default.delegate = self
+        // Configure UserNotifications
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+            if let error = error { print("Notification auth error: \(error)") }
+            print("Notifications permission granted: \(granted)")
+        }
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
@@ -120,14 +126,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
             print("(notifications off) \(title): \(subtitle) - \(body)")
             return
         }
-        // Method 1: Try NSUserNotification (may not work due to permissions)
-        let notification = NSUserNotification()
-        notification.title = title
-        notification.subtitle = subtitle
-        notification.informativeText = body
-        notification.soundName = NSUserNotificationDefaultSoundName
+        // Method 1: UserNotifications framework
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.subtitle = subtitle
+        content.body = body
+        content.sound = .default
 
-        NSUserNotificationCenter.default.deliver(notification)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error { print("Failed to schedule notification: \(error)") }
+        }
 
         // Method 2: Always log to console for debugging
         print("📢 \(title): \(subtitle) - \(body)")
@@ -145,12 +156,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSUserNotificationCenterDele
         }
     }
 
-    // MARK: - NSUserNotificationCenterDelegate
+    // MARK: - UNUserNotificationCenterDelegate
     func userNotificationCenter(
-        _ center: NSUserNotificationCenter, shouldPresent notification: NSUserNotification
-    ) -> Bool {
-        // Always show notifications, even when app is active
-        return true
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler:
+            @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Always show notifications while app is active
+        completionHandler([.banner, .list, .sound])
     }
 
     private func refreshMenu() {
