@@ -49,7 +49,7 @@ final class LoginItemManager: ObservableObject {
                 "ProgramArguments": [
                     "/usr/bin/open",
                     "-a",
-                    appURL.path
+                    appURL.path,
                 ],
             ]
         } else if let exeURL = Bundle.main.executableURL {
@@ -57,7 +57,7 @@ final class LoginItemManager: ObservableObject {
             dict = [
                 "Label": label,
                 "RunAtLoad": true,
-                "Program": exeURL.path
+                "Program": exeURL.path,
             ]
         } else {
             throw NSError(domain: label, code: 2)

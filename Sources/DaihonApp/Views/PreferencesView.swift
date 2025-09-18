@@ -188,7 +188,8 @@ struct PreferencesView: View {
                                     }
                                 } catch {
                                     await MainActor.run {
-                                        alert = "Failed to update login item: \(error.localizedDescription)"
+                                        alert =
+                                            "Failed to update login item: \(error.localizedDescription)"
                                     }
                                 }
                             }
