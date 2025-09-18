@@ -180,11 +180,17 @@ struct PreferencesView: View {
                     isOn: Binding(
                         get: { startAtLogin },
                         set: { newValue in
-                            do {
-                                try LoginItemManager.shared.setEnabled(newValue)
-                                startAtLogin = newValue
-                            } catch {
-                                alert = "Failed to update login item: \(error.localizedDescription)"
+                            Task {
+                                do {
+                                    try await LoginItemManager.shared.setEnabled(newValue)
+                                    await MainActor.run {
+                                        startAtLogin = newValue
+                                    }
+                                } catch {
+                                    await MainActor.run {
+                                        alert = "Failed to update login item: \(error.localizedDescription)"
+                                    }
+                                }
                             }
                         })
                 ) {

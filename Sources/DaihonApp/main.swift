@@ -23,6 +23,7 @@ struct DaihonAppMain: App {
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var statusItem: NSStatusItem!
     private var cancellables: Set<AnyCancellable> = []
+    private var notificationsAuthorized: Bool = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Start as a status bar app (no Dock) and elevate to Dock when needed (e.g., Preferences)
@@ -31,9 +32,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         // Configure UserNotifications
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+        center.requestAuthorization(options: [.alert, .badge, .sound]) {
+            [weak self] granted, error in
             if let error = error { print("Notification auth error: \(error)") }
-            print("Notifications permission granted: \(granted)")
+            DispatchQueue.main.async {
+                self?.notificationsAuthorized = granted
+                print("Notifications permission granted: \(granted)")
+            }
+        }
+        // Also query current settings in case permission was decided earlier
+        center.getNotificationSettings { [weak self] settings in
+            DispatchQueue.main.async {
+                self?.notificationsAuthorized =
+                    (settings.authorizationStatus == .authorized
+                        || settings.authorizationStatus == .provisional)
+                print("Notification authorization status: \(settings.authorizationStatus.rawValue)")
+            }
         }
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -126,18 +140,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             print("(notifications off) \(title): \(subtitle) - \(body)")
             return
         }
-        // Method 1: UserNotifications framework
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.subtitle = subtitle
-        content.body = body
-        content.sound = .default
+        // Method 1: UserNotifications framework (only if authorized)
+        if notificationsAuthorized {
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.subtitle = subtitle
+            content.body = body
+            content.sound = .default
 
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: UUID().uuidString, content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error { print("Failed to schedule notification: \(error)") }
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: UUID().uuidString, content: content, trigger: trigger)
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error { print("Failed to schedule notification: \(error)") }
+            }
+        } else {
+            print("(notifications not authorized) \(title): \(subtitle) - \(body)")
         }
 
         // Method 2: Always log to console for debugging

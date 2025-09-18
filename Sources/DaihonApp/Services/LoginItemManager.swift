@@ -10,12 +10,12 @@ final class LoginItemManager: ObservableObject {
         FileManager.default.fileExists(atPath: agentPlistURL.path)
     }
 
-    func setEnabled(_ enable: Bool) throws {
+    func setEnabled(_ enable: Bool) async throws {
         if enable {
             try writePlist()
-            try loadAgent()
+            try await loadAgent()
         } else {
-            _ = try? unloadAgent()
+            _ = try? await unloadAgent()
             try removePlist()
         }
     }
@@ -74,26 +74,34 @@ final class LoginItemManager: ObservableObject {
 
     // MARK: launchctl
     @discardableResult
-    private func loadAgent() throws -> Int32 {
+    private func loadAgent() async throws -> Int32 {
         // `launchctl bootstrap gui/$UID <plist>` is the modern API
         // If already bootstrapped, this will error; that's fine.
         let uid = getuid()
-        return try runLaunchctl(["bootstrap", "gui/\(uid)", agentPlistURL.path])
+        return try await runLaunchctl(["bootstrap", "gui/\(uid)", agentPlistURL.path])
     }
 
     @discardableResult
-    private func unloadAgent() throws -> Int32 {
+    private func unloadAgent() async throws -> Int32 {
         let uid = getuid()
-        return try runLaunchctl(["bootout", "gui/\(uid)/\(label)"])
+        return try await runLaunchctl(["bootout", "gui/\(uid)/\(label)"])
     }
 
     @discardableResult
-    private func runLaunchctl(_ args: [String]) throws -> Int32 {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        proc.arguments = ["-lc", ([("/bin/launchctl")] + args).joined(separator: " ")]
-        try proc.run()
-        proc.waitUntilExit()
-        return proc.terminationStatus
+    private func runLaunchctl(_ args: [String]) async throws -> Int32 {
+        return try await withCheckedThrowingContinuation { continuation in
+            Task.detached {
+                do {
+                    let proc = Process()
+                    proc.executableURL = URL(fileURLWithPath: "/bin/zsh")
+                    proc.arguments = ["-lc", ([("/bin/launchctl")] + args).joined(separator: " ")]
+                    try proc.run()
+                    proc.waitUntilExit()
+                    continuation.resume(returning: proc.terminationStatus)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
     }
 }
