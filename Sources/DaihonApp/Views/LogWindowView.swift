@@ -93,7 +93,8 @@ struct LogWindowView: View {
     }
 
     private func loadPersisted() {
-        let existing = LogStore.shared.read(projectID: logState.projectID, scriptID: logState.scriptID)
+        let existing = LogStore.shared.read(
+            projectID: logState.projectID, scriptID: logState.scriptID)
         var s = AttributedString(existing)
         s.font = .system(.body, design: .monospaced)
         logText = s
@@ -128,7 +129,9 @@ struct LogWindowView: View {
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = defaultLogFileName()
         if #available(macOS 11.0, *) {
-            panel.allowedContentTypes = [UTType(filenameExtension: "log") ?? .plainText, .plainText]
+            panel.allowedContentTypes = [
+                UTType(filenameExtension: "log") ?? .plainText, .plainText,
+            ]
         }
         if panel.runModal() == .OK, let url = panel.url {
             do {
