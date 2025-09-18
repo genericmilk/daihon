@@ -11,59 +11,60 @@ struct LogWindowView: View {
     @ObservedObject private var processManager = ProcessManager.shared
     private let bottomAnchorID = "log-bottom-anchor"
     @State private var alert: String? = nil
+    @State private var isPersistedLogTruncated = false
+    private let persistedTailLimit = 512 * 1024
+    private let persistedTailLabel = ByteCountFormatter.string(
+        fromByteCount: Int64(512 * 1024), countStyle: .file)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header styled to match app design
-            HStack(spacing: 12) {
-                Text(logState.title)
-                    .font(.headline)
-                Spacer()
-                HStack(spacing: 8) {
-                    Button(action: clearLogs) {
-                        Label("Clear", systemImage: "trash")
-                    }
-                    Button(action: copyLogs) {
-                        Label("Copy", systemImage: "doc.on.doc")
-                    }
-                    Button(action: saveLogs) {
-                        Label("Save", systemImage: "square.and.arrow.down")
-                    }
-                }
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(Color.primary.opacity(0.03))
-            .overlay(
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color.primary.opacity(0.06)),
-                alignment: .bottom
-            )
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
+                header
 
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(logText)
-                            .font(.system(.body, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
-                        // Invisible anchor at the end for robust autoscroll
-                        Color.clear.frame(height: 1).id(bottomAnchorID)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                if isPersistedLogTruncated {
+                    truncatedNotice
                 }
-                .background(Color.clear)
-                .onAppear { scrollToBottom(proxy) }
-                .onChange(of: logText) { _ in
-                    scrollToBottom(proxy)
+
+                ScrollViewReader { proxy in
+                    VStack(spacing: 0) {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(logText)
+                                    .font(.system(.body, design: .monospaced))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 12)
+                                // Invisible anchor at the end for robust autoscroll
+                                Color.clear.frame(height: 1).id(bottomAnchorID)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .background(Color.clear)
+                        .onAppear { scrollToBottom(proxy) }
+                        .onChange(of: logText) { _ in
+                            scrollToBottom(proxy)
+                        }
+                    }
+                    .padding(6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.primary.opacity(0.025))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                    )
                 }
             }
+            .padding(20)
+            .glassPanel(radius: 16)
+            .padding(.horizontal, 18)
+            .padding(.top, 20)
+
+            Spacer(minLength: 0)
         }
-        .padding(12)
-        .glassPanel(radius: 16)
+        .padding(.bottom, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
             loadPersisted()
             subscribe()
@@ -74,11 +75,89 @@ struct LogWindowView: View {
             cancellable?.cancel()
             subscribe()
         }
+        .background {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(0.85)
+                .ignoresSafeArea()
+        }
         .alert(
             item: Binding(get: { alert.map { LogAlertItem(msg: $0) } }, set: { _ in alert = nil })
         ) { a in
             Alert(title: Text("Error"), message: Text(a.msg))
         }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Label {
+                Text(logState.title)
+                    .font(.system(size: 16, weight: .semibold))
+            } icon: {
+                Image(systemName: "terminal")
+                    .font(.system(size: 16, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+            }
+            .labelStyle(.titleAndIcon)
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                headerButton(systemName: "trash", help: "Clear log", action: clearLogs)
+                headerButton(systemName: "doc.on.doc", help: "Copy log", action: copyLogs)
+                headerButton(
+                    systemName: "square.and.arrow.down", help: "Save log", action: saveLogs)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.primary.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+        )
+    }
+
+    private var truncatedNotice: some View {
+        Label {
+            Text("Showing last \(persistedTailLabel) of saved log (older entries truncated)")
+        } icon: {
+            Image(systemName: "info.circle")
+                .symbolVariant(.fill)
+        }
+        .font(.footnote)
+        .foregroundColor(.secondary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private func headerButton(systemName: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: 32, height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.primary.opacity(0.05))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 
     func subscribe() {
@@ -93,12 +172,21 @@ struct LogWindowView: View {
     }
 
     private func loadPersisted() {
-        let existing = LogStore.shared.read(
-            projectID: logState.projectID, scriptID: logState.scriptID)
-        var s = AttributedString(existing)
-        s.font = .system(.body, design: .monospaced)
-        logText = s
-        plainLogText = existing
+        let projectID = logState.projectID
+        let scriptID = logState.scriptID
+        let limit = persistedTailLimit
+        isPersistedLogTruncated = false
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = LogStore.shared.readTail(
+                projectID: projectID, scriptID: scriptID, maxBytes: limit)
+            DispatchQueue.main.async {
+                self.isPersistedLogTruncated = result.truncated
+                self.plainLogText = result.text
+                var s = AttributedString(result.text)
+                s.font = .system(.body, design: .monospaced)
+                self.logText = s
+            }
+        }
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
@@ -116,6 +204,7 @@ struct LogWindowView: View {
         LogStore.shared.clear(projectID: logState.projectID, scriptID: logState.scriptID)
         logText = ""
         plainLogText = ""
+        isPersistedLogTruncated = false
     }
 
     private func copyLogs() {

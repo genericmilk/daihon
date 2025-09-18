@@ -1,0 +1,107 @@
+default	11:20:37.292157+0100	runningboardd	Acquiring assertion targeting [app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] from originator [osservice<com.apple.coreservices.launchservicesd>:368] with description <RBSAssertionDescriptor| "frontmost:35826" ID:403-368-11785 target:35826 attributes:[
+	<RBSDomainAttribute| domain:"com.apple.launchservicesd" name:"RoleUserInteractiveFocal" sourceEnvironment:"(null)">
+	]>
+default	11:20:37.292260+0100	runningboardd	Assertion 403-368-11785 (target:[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826]) will be created as active
+default	11:20:37.292746+0100	WindowServer	fed0f[DoDeferredOrdering]: [DeferringManager] Updating policy {
+    advicePolicy: .frontmost;
+    frontmostProcess: 0x0-0x104104 (Daihon) mainConnectionID: FED0F;
+} for reason: updated frontmost process
+default	11:20:37.292802+0100	WindowServer	fed0f[DoDeferredOrdering]: [DeferringManager] Deferring events from frontmost process PSN 0x0-0x104104 (Daihon) -> <pid: 35826>
+default	11:20:37.292985+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring jetsam update because this process is not memory-managed
+default	11:20:37.292998+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring suspend because this process is not lifecycle managed
+default	11:20:37.293023+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Set darwin role to: UserInteractiveFocal
+default	11:20:37.292865+0100	WindowServer	new deferring rules for pid:405: [
+    [405-4AD]; <keyboardFocus; Daihon:0x0-0x104104>; () -> <pid: 35826>; reason: frontmost PSN --> outbound target,
+    [405-4AC]; <keyboardFocus; <frontmost>>; () -> <token: Daihon:0x0-0x104104; pid: 405>; reason: frontmost PSN,
+    [405-4AB]; <keyboardFocus>; () -> <token: <frontmost>; pid: 405>; reason: Deferring to <frontmost>
+]
+default	11:20:37.292891+0100	WindowServer	[keyboardFocus 0x881916bc0] setRules:forPID(405): [
+    [405-4AD]; <keyboardFocus; Daihon:0x0-0x104104>; () -> <pid: 35826>; reason: frontmost PSN --> outbound target,
+    [405-4AC]; <keyboardFocus; <frontmost>>; () -> <token: Daihon:0x0-0x104104; pid: 405>; reason: frontmost PSN,
+    [405-4AB]; <keyboardFocus>; () -> <token: <frontmost>; pid: 405>; reason: Deferring to <frontmost>
+]
+default	11:20:37.293034+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring GPU update because this process is not GPU managed
+default	11:20:37.293056+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring memory limit update because this process is not memory-managed
+default	11:20:37.293399+0100	runningboardd	Acquiring assertion targeting [app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] from originator [osservice<com.apple.coreservices.launchservicesd>:368] with description <RBSAssertionDescriptor| "notification:35826" ID:403-368-11786 target:35826 attributes:[
+	<RBSDomainAttribute| domain:"com.apple.launchservicesd" name:"LSNotification" sourceEnvironment:"(null)">
+	]>
+default	11:20:37.293518+0100	runningboardd	Assertion 403-368-11786 (target:[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826]) will be created as active
+default	11:20:37.293844+0100	WindowServer	chain did update (setDeferringRules) <keyboardFocus; display: null> containsEndOfChain: YES; [
+    <token: <frontmost>; pid: 405>,
+    <token: Daihon:0x0-0x104104; pid: 405>,
+    <pid: 35826>,
+    <token: viewbridge-key-window; pid: 35826>
+]
+default	11:20:37.295715+0100	kernel	Sandbox: ContextStoreAgent(649) allow file-read-data /Applications/Daihon.app
+default	11:20:37.295917+0100	kernel	Sandbox: ContextStoreAgent(649) allow file-read-data /Applications/Daihon.app/Contents
+default	11:20:37.296017+0100	kernel	Sandbox: ContextStoreAgent(649) allow file-read-data /Applications/Daihon.app/Contents/Info.plist
+default	11:20:37.296385+0100	kernel	Sandbox: ContextStoreAgent(649) allow file-read-data /Applications/Daihon.app
+default	11:20:37.298249+0100	kernel	Sandbox: ContextStoreAgent(649) allow file-read-data /Applications/Daihon.app/Contents/MacOS/DaihonApp
+default	11:20:37.298799+0100	DaihonApp	channel:<private> signal:<private> sessionID:<private> timestamp:<private> payload:<private>
+default	11:20:37.299403+0100	runningboardd	Calculated state for app<application.com.genericmilk.daihon.27661996.27662001(501)>: running-active (role: UserInteractiveFocal) (endowments: <private>)
+default	11:20:37.299715+0100	runningboardd	Acquiring assertion targeting [app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] from originator [osservice<com.apple.WindowServer(88)>:405] with description <RBSAssertionDescriptor| "FUSBFrontmostProcess" ID:403-405-11787 target:35826 attributes:[
+	<RBSDomainAttribute| domain:"com.apple.fuseboard" name:"Frontmost" sourceEnvironment:"(null)">,
+	<RBSAcquisitionCompletionAttribute| policy:AfterApplication>
+	]>
+default	11:20:37.299774+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring jetsam update because this process is not memory-managed
+default	11:20:37.299787+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring suspend because this process is not lifecycle managed
+default	11:20:37.299798+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring GPU update because this process is not GPU managed
+default	11:20:37.299802+0100	runningboardd	Assertion 403-405-11787 (target:[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826]) will be created as active
+default	11:20:37.299819+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring memory limit update because this process is not memory-managed
+default	11:20:37.299992+0100	ControlCenter	Received state update for 35826 (app<application.com.genericmilk.daihon.27661996.27662001(501)>, running-active-NotVisible
+default	11:20:37.300107+0100	gamepolicyd	Received state update for 35826 (app<application.com.genericmilk.daihon.27661996.27662001(501)>, running-active-NotVisible
+default	11:20:37.300860+0100	kernel	1 duplicate report for Sandbox: ContextStoreAgent(649) allow file-read-data /Applications/Daihon.app/Contents/MacOS/DaihonApp
+default	11:20:37.300870+0100	kernel	Sandbox: ContextStoreAgent(649) allow file-read-xattr /Applications/Daihon.app/Contents/MacOS/DaihonApp
+default	11:20:37.301559+0100	kernel	Sandbox: ContextStoreAgent(649) allow file-read-data /Applications/Daihon.app/Contents/Info.plist
+default	11:20:37.304752+0100	runningboardd	Calculated state for app<application.com.genericmilk.daihon.27661996.27662001(501)>: running-active (role: UserInteractiveFocal) (endowments: <private>)
+default	11:20:37.305208+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring jetsam update because this process is not memory-managed
+default	11:20:37.305279+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring suspend because this process is not lifecycle managed
+default	11:20:37.305298+0100	ControlCenter	Received state update for 35826 (app<application.com.genericmilk.daihon.27661996.27662001(501)>, running-active-NotVisible
+default	11:20:37.305474+0100	gamepolicyd	Received state update for 35826 (app<application.com.genericmilk.daihon.27661996.27662001(501)>, running-active-NotVisible
+default	11:20:37.305322+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring GPU update because this process is not GPU managed
+default	11:20:37.305579+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring memory limit update because this process is not memory-managed
+default	11:20:37.311520+0100	runningboardd	Calculated state for app<application.com.genericmilk.daihon.27661996.27662001(501)>: running-active (role: UserInteractiveFocal) (endowments: <private>)
+default	11:20:37.312167+0100	ControlCenter	Received state update for 35826 (app<application.com.genericmilk.daihon.27661996.27662001(501)>, running-active-NotVisible
+default	11:20:37.312547+0100	gamepolicyd	Received state update for 35826 (app<application.com.genericmilk.daihon.27661996.27662001(501)>, running-active-NotVisible
+default	11:20:37.314959+0100	DaihonApp	[0x7cc168b40] activating connection: mach=false listener=false peer=false name=com.apple.TextInputUI.xpc.CursorUIViewService
+default	11:20:37.315212+0100	DaihonApp	[0x7cc168b40] invalidated after the last release of the connection object
+default	11:20:37.315324+0100	DaihonApp	[0x7cc168c80] activating connection: mach=false listener=false peer=false name=(anonymous)
+default	11:20:37.315361+0100	DaihonApp	[0x7cc168b40] activating connection: mach=false listener=false peer=false name=(anonymous)
+default	11:20:37.330569+0100	DaihonApp	-[TUINSCursorUIController activate:]_block_invoke: Create CursorUIViewService: TUINSRemoteViewController
+default	11:20:37.330936+0100	DaihonApp	[0x7cc168f00] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+default	11:20:37.330949+0100	DaihonApp	[0x7cc169040] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+default	11:20:37.331993+0100	WindowServer	chain did update (setDeferringRules) <keyboardFocus; display: null> containsEndOfChain: YES; [
+    <token: <frontmost>; pid: 405>,
+    <token: Daihon:0x0-0x104104; pid: 405>,
+    <pid: 35826>,
+    <token: viewbridge-key-window; pid: 35826>
+]
+default	11:20:37.332612+0100	WindowServer	chain did update (setDeferringRules) <keyboardFocus; display: null> containsEndOfChain: YES; [
+    <token: <frontmost>; pid: 405>,
+    <token: Daihon:0x0-0x104104; pid: 405>,
+    <pid: 35826>,
+    <token: viewbridge-key-window; pid: 35826>
+]
+default	11:20:38.938116+0100	kernel	1 duplicate report for Sandbox: ContextStoreAgent(649) allow file-read-data /Applications/Daihon.app/Contents/Info.plist
+default	11:20:41.226568+0100	DaihonApp	channel:<private> signal:<private> sessionID:<private> timestamp:<private> payload:<private>
+default	11:20:41.227410+0100	DaihonApp	channel:<private> signal:<private> sessionID:<private> timestamp:<private> payload:<private>
+default	11:20:41.227566+0100	DaihonApp	channel:<private> signal:<private> sessionID:<private> timestamp:<private> payload:<private>
+default	11:20:42.560523+0100	runningboardd	Assertion did invalidate due to timeout: 403-368-11786 (target:[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826])
+default	11:20:42.762676+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring jetsam update because this process is not memory-managed
+default	11:20:42.762690+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring suspend because this process is not lifecycle managed
+default	11:20:42.762697+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring GPU update because this process is not GPU managed
+default	11:20:42.762712+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring memory limit update because this process is not memory-managed
+default	11:20:42.767419+0100	runningboardd	Calculated state for app<application.com.genericmilk.daihon.27661996.27662001(501)>: running-active (role: UserInteractiveFocal) (endowments: <private>)
+default	11:20:42.778037+0100	ControlCenter	Received state update for 35826 (app<application.com.genericmilk.daihon.27661996.27662001(501)>, running-active-NotVisible
+default	11:20:42.778280+0100	gamepolicyd	Received state update for 35826 (app<application.com.genericmilk.daihon.27661996.27662001(501)>, running-active-NotVisible
+default	11:20:43.628707+0100	spindump	DaihonApp [35826]: spin: not sampling due to conditions 0x400000000
+default	11:20:54.372248+0100	runningboardd	Invalidating assertion 403-368-11785 (target:[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826]) from originator [osservice<com.apple.coreservices.launchservicesd>:368]
+default	11:20:54.387378+0100	runningboardd	Invalidating assertion 403-405-11787 (target:[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826]) from originator [osservice<com.apple.WindowServer(88)>:405]
+default	11:20:54.480895+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring jetsam update because this process is not memory-managed
+default	11:20:54.480907+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring suspend because this process is not lifecycle managed
+default	11:20:54.480940+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Set darwin role to: UserInteractiveNonFocal
+default	11:20:54.480961+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring GPU update because this process is not GPU managed
+default	11:20:54.480998+0100	runningboardd	[app<application.com.genericmilk.daihon.27661996.27662001(501)>:35826] Ignoring memory limit update because this process is not memory-managed
+default	11:20:54.488238+0100	runningboardd	Calculated state for app<application.com.genericmilk.daihon.27661996.27662001(501)>: running-active (role: UserInteractiveNonFocal) (endowments: <private>)
+default	11:20:54.488765+0100	ControlCenter	Received state update for 35826 (app<application.com.genericmilk.daihon.27661996.27662001(501)>, running-active-NotVisible
+default	11:20:54.489265+0100	gamepolicyd	Received state update for 35826 (app<application.com.genericmilk.daihon.27661996.27662001(501)>, running-active-NotVisible

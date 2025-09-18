@@ -38,7 +38,7 @@ struct PreferencesView: View {
     }
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 12) {
             sidebar
             content
         }

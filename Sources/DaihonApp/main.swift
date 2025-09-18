@@ -29,26 +29,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         // Start as a status bar app (no Dock) and elevate to Dock when needed (e.g., Preferences)
         NSApp.setActivationPolicy(.accessory)
 
-        // Configure UserNotifications
-        let center = UNUserNotificationCenter.current()
-        center.delegate = self
-        center.requestAuthorization(options: [.alert, .badge, .sound]) {
-            [weak self] granted, error in
-            if let error = error { print("Notification auth error: \(error)") }
-            DispatchQueue.main.async {
-                self?.notificationsAuthorized = granted
-                print("Notifications permission granted: \(granted)")
-            }
-        }
-        // Also query current settings in case permission was decided earlier
-        center.getNotificationSettings { [weak self] settings in
-            DispatchQueue.main.async {
-                self?.notificationsAuthorized =
-                    (settings.authorizationStatus == .authorized
-                        || settings.authorizationStatus == .provisional)
-                print("Notification authorization status: \(settings.authorizationStatus.rawValue)")
-            }
-        }
+        // Configure UserNotifications (only if running from proper app bundle)
+        configureNotificationsIfAvailable()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
@@ -68,6 +50,35 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
         // Try to set a custom application icon for Dock and Cmd-Tab
         setApplicationIconIfAvailable()
+    }
+
+    private func configureNotificationsIfAvailable() {
+        // Only configure notifications if we have a proper app bundle
+        // This prevents crashes when running via `swift run`
+        guard Bundle.main.bundleURL.pathExtension == "app" else {
+            print("Not running from app bundle, skipping UserNotifications setup")
+            return
+        }
+
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        center.requestAuthorization(options: [.alert, .badge, .sound]) {
+            [weak self] granted, error in
+            if let error = error { print("Notification auth error: \(error)") }
+            DispatchQueue.main.async {
+                self?.notificationsAuthorized = granted
+                print("Notifications permission granted: \(granted)")
+            }
+        }
+        // Also query current settings in case permission was decided earlier
+        center.getNotificationSettings { [weak self] settings in
+            DispatchQueue.main.async {
+                self?.notificationsAuthorized =
+                    (settings.authorizationStatus == .authorized
+                        || settings.authorizationStatus == .provisional)
+                print("Notification authorization status: \(settings.authorizationStatus.rawValue)")
+            }
+        }
     }
 
     private func setupMenuBarIcon(for button: NSStatusBarButton) {

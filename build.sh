@@ -10,12 +10,18 @@ RUN=1
 
 usage() {
   echo "Usage: $0 [--release|-r] [--build-only|-b]"
+  echo ""
+  echo "Options:"
+  echo "  --release, -r     Build in release mode, create zip, don't run app"
+  echo "  --build-only, -b  Build but don't run the app"
+  echo "  --help, -h        Show this help message"
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --release|-r)
       CONFIG=release
+      RUN=0  # Don't run the app in release mode
       ;;
     --build-only|-b)
       RUN=0
@@ -142,32 +148,44 @@ ensure_app_icon
 
 close_existing_daihon
 
+# Clean up existing app bundle for release builds
+if [[ "$CONFIG" == "release" ]]; then
+  if [[ -d "Daihon.app" ]]; then
+    echo "==> Removing existing Daihon.app for release build"
+    rm -rf "Daihon.app"
+  fi
+  if [[ -f "Daihon.zip" ]]; then
+    echo "==> Removing existing Daihon.zip"
+    rm -f "Daihon.zip"
+  fi
+fi
+
 echo "==> Building (configuration: $CONFIG)"
 swift build -c "$CONFIG"
 
-if [[ "$RUN" -eq 1 ]]; then
-  echo "==> Creating app bundle for proper icon support"
-  local APP_DIR="Daihon.app"
-  local CONTENTS_DIR="$APP_DIR/Contents"
-  local MACOS_DIR="$CONTENTS_DIR/MacOS"
-  local RES_DIR="$CONTENTS_DIR/Resources"
-  mkdir -p "$MACOS_DIR" "$RES_DIR"
-  
-  # Copy executable
-  cp ".build/$CONFIG/DaihonApp" "$MACOS_DIR/"
-  chmod +x "$MACOS_DIR/DaihonApp"
-  
-  # Copy resources
-  cp -r "Sources/DaihonApp/Resources/"* "$RES_DIR/" 2>/dev/null || true
-  
-  # Copy custom menu bar icon
-  if [[ -f "icon-res/foreground.png" ]]; then
-    cp "icon-res/foreground.png" "$RES_DIR/"
-    echo "==> Copied custom menu bar icon: icon-res/foreground.png -> $RES_DIR/"
-  fi
-  
-  # Create Info.plist
-  cat > "$CONTENTS_DIR/Info.plist" <<EOF
+# Always create app bundle for proper icon support and distribution
+echo "==> Creating app bundle"
+APP_DIR="Daihon.app"
+CONTENTS_DIR="$APP_DIR/Contents"
+MACOS_DIR="$CONTENTS_DIR/MacOS"
+RES_DIR="$CONTENTS_DIR/Resources"
+mkdir -p "$MACOS_DIR" "$RES_DIR"
+
+# Copy executable
+cp ".build/$CONFIG/DaihonApp" "$MACOS_DIR/"
+chmod +x "$MACOS_DIR/DaihonApp"
+
+# Copy resources
+cp -r "Sources/DaihonApp/Resources/"* "$RES_DIR/" 2>/dev/null || true
+
+# Copy custom menu bar icon
+if [[ -f "icon-res/foreground.png" ]]; then
+  cp "icon-res/foreground.png" "$RES_DIR/"
+  echo "==> Copied custom menu bar icon: icon-res/foreground.png -> $RES_DIR/"
+fi
+
+# Create Info.plist
+cat > "$CONTENTS_DIR/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -193,7 +211,12 @@ if [[ "$RUN" -eq 1 ]]; then
 </dict>
 </plist>
 EOF
-  
+
+if [[ "$CONFIG" == "release" ]]; then
+  echo "==> Creating release zip: Daihon.zip"
+  zip -r "Daihon.zip" "$APP_DIR" >/dev/null 2>&1
+  echo "==> Release build complete: Daihon.zip created"
+elif [[ "$RUN" -eq 1 ]]; then
   echo "==> Running Daihon.app (configuration: $CONFIG)"
   # exec replaces the shell so Ctrl-C stops the app and exits the script
   exec open "$APP_DIR"

@@ -39,6 +39,41 @@ final class LogStore {
         return (try? String(contentsOf: url, encoding: .utf8)) ?? ""
     }
 
+    func readTail(projectID: UUID, scriptID: UUID, maxBytes: Int) -> (text: String, truncated: Bool) {
+        guard maxBytes > 0 else { return ("", false) }
+        let url = logURL(projectID: projectID, scriptID: scriptID)
+        guard fm.fileExists(atPath: url.path) else { return ("", false) }
+
+        do {
+            let attrs = try fm.attributesOfItem(atPath: url.path)
+            if let sizeNumber = attrs[.size] as? NSNumber {
+                let fileSize = sizeNumber.intValue
+                if fileSize <= maxBytes {
+                    return (read(projectID: projectID, scriptID: scriptID), false)
+                }
+
+                let handle = try FileHandle(forReadingFrom: url)
+                defer { try? handle.close() }
+
+                let offset = UInt64(max(0, fileSize - maxBytes))
+                try handle.seek(toOffset: offset)
+                var data = handle.readDataToEndOfFile()
+
+                if offset > 0, let newlineIndex = data.firstIndex(of: UInt8(ascii: "\n")) {
+                    let nextIndex = data.index(after: newlineIndex)
+                    data = data.suffix(from: nextIndex)
+                }
+
+                let text = String(decoding: data, as: UTF8.self)
+                return (text, true)
+            }
+        } catch {
+            // Intentionally fall through to return default below
+        }
+
+        return ("", false)
+    }
+
     func clear(projectID: UUID, scriptID: UUID) {
         let url = logURL(projectID: projectID, scriptID: scriptID)
         queue.async {
@@ -79,4 +114,3 @@ final class LogStore {
         return f.string(from: Date())
     }
 }
-

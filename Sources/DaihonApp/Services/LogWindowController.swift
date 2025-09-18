@@ -17,9 +17,9 @@ final class LogWindowController: NSObject {
         win.title = logState.title
         win.titleVisibility = .hidden
         win.titlebarAppearsTransparent = true
-        win.isOpaque = true
-        win.backgroundColor = NSColor.windowBackgroundColor
-        win.styleMask = [.titled, .closable, .resizable]
+        win.isOpaque = false
+        win.backgroundColor = .clear
+        win.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
         let toolbar = NSToolbar(identifier: NSToolbar.Identifier("LogToolbar"))
         toolbar.showsBaselineSeparator = false
         win.toolbar = toolbar
