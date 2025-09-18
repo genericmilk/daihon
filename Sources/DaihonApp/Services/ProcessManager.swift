@@ -1,4 +1,5 @@
 import Combine
+import Darwin
 import Foundation
 
 final class ProcessManager: ObservableObject {
@@ -25,7 +26,8 @@ final class ProcessManager: ObservableObject {
         let pm = project.effectivePackageManager(
             globalDefault: AppState.shared.preferences.packageManager)
         let baseCmd = pm.commandToRun(script: escape(script.command))
-        process.arguments = ["-lc", "\(baseCmd) 2>&1"]
+        // Keep stdout and stderr separate; we already pipe both below
+        process.arguments = ["-lc", "\(baseCmd)"]
 
         let outputPipe = Pipe()
         let errorPipe = Pipe()
@@ -38,28 +40,28 @@ final class ProcessManager: ObservableObject {
         let outHandle = outputPipe.fileHandleForReading
         let errHandle = errorPipe.fileHandleForReading
 
-        // Announce start in persistent log
-        LogStore.shared.appendBoundary(
-            "process started", projectID: project.id, scriptID: script.id)
-
-        // Announce start in persistent log
+        // Announce start in persistent log (single entry)
         LogStore.shared.appendBoundary(
             "process started", projectID: project.id, scriptID: script.id)
 
         outHandle.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
-                // Persist first, then emit to subscribers
-                LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
-                subject.send(str)
+            autoreleasepool {
+                let data = handle.availableData
+                if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
+                    // Persist first, then emit to subscribers
+                    LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
+                    subject.send(str)
+                }
             }
         }
 
         errHandle.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
-                LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
-                subject.send(str)
+            autoreleasepool {
+                let data = handle.availableData
+                if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
+                    LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
+                    subject.send(str)
+                }
             }
         }
 
@@ -86,11 +88,24 @@ final class ProcessManager: ObservableObject {
 
     func stop(scriptID: UUID) {
         guard let r = running[scriptID] else { return }
+        // Stop reading immediately to avoid further UI/log churn
         r.outputPipe.fileHandleForReading.readabilityHandler = nil
         r.errorPipe.fileHandleForReading.readabilityHandler = nil
+
+        // Ask the process to terminate gracefully
         r.process.terminate()
-        r.process.waitUntilExit()
-        running.removeValue(forKey: scriptID)
+
+        // Safety net: if it hasn't exited after a short delay, force kill
+        let process = r.process
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 3.0) {
+            if process.isRunning {
+                let pid = process.processIdentifier
+                if pid > 0 {
+                    _ = Darwin.kill(pid, SIGKILL)
+                }
+            }
+        }
+        // Do not block the main thread with waitUntilExit(); cleanup occurs in terminationHandler
     }
 
     func restart(script: Script, in project: Project) {
@@ -108,7 +123,13 @@ final class ProcessManager: ObservableObject {
     func logsPublisher(for scriptID: UUID) -> AnyPublisher<String, Never>? {
         // Only expose a publisher when running to preserve existing isRunning checks elsewhere
         guard running[scriptID] != nil else { return nil }
-        return subject(for: scriptID).eraseToAnyPublisher()
+        // Batch bursts of output to reduce UI updates while preserving content ordering
+        return subject(for: scriptID)
+            .collect(
+                .byTimeOrCount(DispatchQueue.global(qos: .userInitiated), .milliseconds(80), 200)
+            )
+            .map { $0.joined() }
+            .eraseToAnyPublisher()
     }
 
     private func escape(_ s: String) -> String {

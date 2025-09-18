@@ -1,22 +1,48 @@
 import AppKit
 import Combine
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct LogWindowView: View {
     let logState: ScriptLogState
     @State private var logText: AttributedString = ""
+    @State private var plainLogText: String = ""
     @State private var cancellable: AnyCancellable?
     @ObservedObject private var processManager = ProcessManager.shared
     private let bottomAnchorID = "log-bottom-anchor"
+    @State private var alert: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(logState.title).font(.headline)
+            // Header styled to match app design
+            HStack(spacing: 12) {
+                Text(logState.title)
+                    .font(.headline)
                 Spacer()
+                HStack(spacing: 8) {
+                    Button(action: clearLogs) {
+                        Label("Clear", systemImage: "trash")
+                    }
+                    Button(action: copyLogs) {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                    Button(action: saveLogs) {
+                        Label("Save", systemImage: "square.and.arrow.down")
+                    }
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
             }
-            .padding(8)
-            Divider()
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(Color.primary.opacity(0.03))
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Color.primary.opacity(0.06)),
+                alignment: .bottom
+            )
+
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
@@ -48,19 +74,17 @@ struct LogWindowView: View {
             cancellable?.cancel()
             subscribe()
         }
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button("Clear") {
-                    LogStore.shared.clear(projectID: logState.projectID, scriptID: logState.scriptID)
-                    logText = ""
-                }
-            }
+        .alert(
+            item: Binding(get: { alert.map { LogAlertItem(msg: $0) } }, set: { _ in alert = nil })
+        ) { a in
+            Alert(title: Text("Error"), message: Text(a.msg))
         }
     }
 
     func subscribe() {
         if let pub = ProcessManager.shared.logsPublisher(for: logState.scriptID) {
             cancellable = pub.receive(on: DispatchQueue.main).sink { chunk in
+                plainLogText.append(chunk)
                 var s = AttributedString(chunk)
                 s.font = .system(.body, design: .monospaced)
                 logText.append(s)
@@ -73,14 +97,61 @@ struct LogWindowView: View {
         var s = AttributedString(existing)
         s.font = .system(.body, design: .monospaced)
         logText = s
+        plainLogText = existing
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
         // Defer to next runloop to ensure layout is updated before scrolling
         DispatchQueue.main.async {
-            withAnimation(.easeOut(duration: 0.1)) {
+            // Avoid extra animations during heavy log output to reduce UI jank
+            NSAnimationContext.runAnimationGroup({ ctx in
+                ctx.duration = 0
                 proxy.scrollTo(bottomAnchorID, anchor: .bottom)
+            })
+        }
+    }
+
+    private func clearLogs() {
+        LogStore.shared.clear(projectID: logState.projectID, scriptID: logState.scriptID)
+        logText = ""
+        plainLogText = ""
+    }
+
+    private func copyLogs() {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(plainLogText, forType: .string)
+    }
+
+    private func saveLogs() {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = defaultLogFileName()
+        if #available(macOS 11.0, *) {
+            panel.allowedContentTypes = [UTType(filenameExtension: "log") ?? .plainText, .plainText]
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            do {
+                try plainLogText.write(to: url, atomically: true, encoding: .utf8)
+            } catch {
+                alert = "Failed to save log: \(error.localizedDescription)"
             }
         }
     }
+
+    private func defaultLogFileName() -> String {
+        let base = logState.title
+            .replacingOccurrences(of: " • ", with: "-")
+            .replacingOccurrences(of: ": ", with: "-")
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: "\\", with: "-")
+        let df = DateFormatter()
+        df.dateFormat = "yyyyMMdd-HHmmss"
+        return "\(base)-\(df.string(from: Date())).log"
+    }
+}
+
+struct LogAlertItem: Identifiable {
+    let id = UUID()
+    let msg: String
 }
