@@ -35,113 +35,145 @@ final class ProcessManager: ObservableObject {
     func start(script: Script, in project: Project) {
         guard running[script.id] == nil else { return }
 
-        let process = Process()
-        process.currentDirectoryURL = URL(fileURLWithPath: project.path)
-        process.launchPath = "/bin/zsh"
-        // Build command based on project's package manager (or global default)
-        let pm = project.effectivePackageManager(
-            globalDefault: AppState.shared.preferences.packageManager)
-        let baseCmd = pm.commandToRun(script: escape(script.command))
-        // Keep stdout and stderr separate; we already pipe both below
-        process.arguments = ["-lc", "\(baseCmd)"]
+        debugLog("Starting script: \(script.id) in project: \(project.path)")
 
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
+        // Move process setup and launch to background thread to avoid blocking main thread
+        DispatchQueue.global(qos: .userInitiated).async {
+            let process = Process()
+            process.currentDirectoryURL = URL(fileURLWithPath: project.path)
+            process.launchPath = "/bin/zsh"
+            // Build command based on project's package manager (or global default)
+            let pm = project.effectivePackageManager(
+                globalDefault: AppState.shared.preferences.packageManager)
+            let baseCmd = pm.commandToRun(script: self.escape(script.command))
+            // Keep stdout and stderr separate; we already pipe both below
+            process.arguments = ["-lc", "\(baseCmd)"]
 
-        // Reuse a persistent subject so the UI doesn't lose subscription across restarts
-        let subject = self.subject(for: script.id)
+            let outputPipe = Pipe()
+            let errorPipe = Pipe()
+            process.standardOutput = outputPipe
+            process.standardError = errorPipe
 
-        let outHandle = outputPipe.fileHandleForReading
-        let errHandle = errorPipe.fileHandleForReading
+            // Reuse a persistent subject so the UI doesn't lose subscription across restarts
+            let subject = self.subject(for: script.id)
 
-        // Announce start in persistent log (single entry)
-        LogStore.shared.appendBoundary(
-            "process started", projectID: project.id, scriptID: script.id)
+            let outHandle = outputPipe.fileHandleForReading
+            let errHandle = errorPipe.fileHandleForReading
 
-        outHandle.readabilityHandler = { handle in
-            autoreleasepool {
-                let startTime = Date()
-                let data = handle.availableData
-                if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
-                    // Persist first, then emit to subscribers
-                    LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
-                    subject.send(str)
-                    let duration = Date().timeIntervalSince(startTime)
-                    debugLog(
-                        "Output chunk processed in \(String(format: "%.3f", duration))s: \(data.count) bytes"
-                    )
+            // Announce start in persistent log (single entry)
+            LogStore.shared.appendBoundary(
+                "process started", projectID: project.id, scriptID: script.id)
+
+            // Ensure file handle operations happen on background queues
+            let outputQueue = DispatchQueue(
+                label: "ProcessManager.output.\(script.id)", qos: .userInitiated)
+            let errorQueue = DispatchQueue(
+                label: "ProcessManager.error.\(script.id)", qos: .userInitiated)
+
+            outHandle.readabilityHandler = { handle in
+                outputQueue.async {
+                    autoreleasepool {
+                        let startTime = Date()
+                        let data = handle.availableData
+                        if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
+                            // Persist first, then emit to subscribers
+                            LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
+                            subject.send(str)
+                            let duration = Date().timeIntervalSince(startTime)
+                            debugLog(
+                                "Output chunk processed in \(String(format: "%.3f", duration))s: \(data.count) bytes"
+                            )
+                        }
+                    }
                 }
             }
-        }
 
-        errHandle.readabilityHandler = { handle in
-            autoreleasepool {
-                let startTime = Date()
-                let data = handle.availableData
-                if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
-                    LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
-                    subject.send(str)
-                    let duration = Date().timeIntervalSince(startTime)
-                    debugLog(
-                        "Error chunk processed in \(String(format: "%.3f", duration))s: \(data.count) bytes"
-                    )
+            errHandle.readabilityHandler = { handle in
+                errorQueue.async {
+                    autoreleasepool {
+                        let startTime = Date()
+                        let data = handle.availableData
+                        if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
+                            LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
+                            subject.send(str)
+                            let duration = Date().timeIntervalSince(startTime)
+                            debugLog(
+                                "Error chunk processed in \(String(format: "%.3f", duration))s: \(data.count) bytes"
+                            )
+                        }
+                    }
                 }
             }
-        }
 
-        process.terminationHandler = { [weak self] _ in
-            DispatchQueue.main.async {
-                LogStore.shared.appendBoundary(
-                    "process exited", projectID: project.id, scriptID: script.id)
-                subject.send("\n— process exited —\n")
-                // Clean up handlers and mark not running
-                outHandle.readabilityHandler = nil
-                errHandle.readabilityHandler = nil
-                self?.running.removeValue(forKey: script.id)
+            process.terminationHandler = { [weak self] _ in
+                DispatchQueue.main.async {
+                    LogStore.shared.appendBoundary(
+                        "process exited", projectID: project.id, scriptID: script.id)
+                    subject.send("\n— process exited —\n")
+                    // Clean up handlers and mark not running
+                    outHandle.readabilityHandler = nil
+                    errHandle.readabilityHandler = nil
+                    self?.running.removeValue(forKey: script.id)
+                }
             }
-        }
 
-        do {
-            try process.run()
-            running[script.id] = RunningProcess(
-                process: process, outputPipe: outputPipe, errorPipe: errorPipe)
-        } catch {
-            subject.send("Failed to start: \(error.localizedDescription)\n")
+            do {
+                // Launch process on background thread to avoid blocking main thread
+                try process.run()
+                debugLog("Process launched successfully for script: \(script.id)")
+
+                // Update running processes on main thread
+                DispatchQueue.main.async {
+                    self.running[script.id] = RunningProcess(
+                        process: process, outputPipe: outputPipe, errorPipe: errorPipe)
+                }
+            } catch {
+                debugLog("Failed to start process for script: \(script.id), error: \(error)")
+                subject.send("Failed to start: \(error.localizedDescription)\n")
+            }
         }
     }
 
     func stop(scriptID: UUID) {
         guard let r = running[scriptID] else { return }
-        // Stop reading immediately to avoid further UI/log churn
-        r.outputPipe.fileHandleForReading.readabilityHandler = nil
-        r.errorPipe.fileHandleForReading.readabilityHandler = nil
 
-        // Ask the process to terminate gracefully
-        r.process.terminate()
+        debugLog("Stopping script: \(scriptID)")
 
-        // Safety net: if it hasn't exited after a short delay, force kill
-        let process = r.process
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 3.0) {
-            if process.isRunning {
-                let pid = process.processIdentifier
-                if pid > 0 {
-                    _ = Darwin.kill(pid, SIGKILL)
+        // Move process termination to background thread to avoid blocking main thread
+        DispatchQueue.global(qos: .utility).async {
+            // Stop reading immediately to avoid further UI/log churn
+            r.outputPipe.fileHandleForReading.readabilityHandler = nil
+            r.errorPipe.fileHandleForReading.readabilityHandler = nil
+
+            // Ask the process to terminate gracefully
+            r.process.terminate()
+
+            // Safety net: if it hasn't exited after a short delay, force kill
+            let process = r.process
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 3.0) {
+                if process.isRunning {
+                    let pid = process.processIdentifier
+                    if pid > 0 {
+                        debugLog("Force killing process \(pid) for script: \(scriptID)")
+                        _ = Darwin.kill(pid, SIGKILL)
+                    }
                 }
             }
+            // Do not block the main thread with waitUntilExit(); cleanup occurs in terminationHandler
         }
-        // Do not block the main thread with waitUntilExit(); cleanup occurs in terminationHandler
     }
 
     func restart(script: Script, in project: Project) {
+        debugLog("Restarting script: \(script.id)")
+        
         // Stop the script if it's running
         if running[script.id] != nil {
             stop(scriptID: script.id)
         }
 
         // Wait a brief moment to ensure cleanup, then start
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        // Use a longer delay to ensure the stop operation completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             self.start(script: script, in: project)
         }
     }

@@ -21,11 +21,9 @@ import UniformTypeIdentifiers
 
 struct LogWindowView: View {
     let logState: ScriptLogState
-    @State private var logText: AttributedString = ""
     @State private var plainLogText: String = ""
     @State private var cancellable: AnyCancellable?
     @ObservedObject private var processManager = ProcessManager.shared
-    private let bottomAnchorID = "log-bottom-anchor"
     @State private var alert: String? = nil
     @State private var isPersistedLogTruncated = false
     private let persistedTailLimit = 512 * 1024
@@ -36,12 +34,7 @@ struct LogWindowView: View {
     private let inMemoryLimit = 1024 * 1024  // 1MB limit for in-memory display
     private let inMemoryTruncateSize = 512 * 1024  // Truncate to 512KB when limit exceeded
 
-    // Performance optimization: batch updates and debounce UI refreshes
-    @State private var pendingUpdates = false
-    @State private var lastUpdateTime = Date()
-    private let updateThrottle: TimeInterval = 0.05  // 50ms throttle
-
-    // Batch text updates to reduce AttributedString creation overhead
+    // Batch text updates to reduce overhead
     @State private var pendingTextChunks: [String] = []
     @State private var isProcessingBatch = false
     private let batchTimeout: TimeInterval = 0.1  // 100ms batch window
@@ -56,40 +49,19 @@ struct LogWindowView: View {
                     truncatedNotice
                 }
 
-                ScrollViewReader { proxy in
-                    VStack(spacing: 0) {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(logText)
-                                    .font(.system(.body, design: .monospaced))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 12)
-                                // Invisible anchor at the end for robust autoscroll
-                                Color.clear.frame(height: 1).id(bottomAnchorID)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .background(Color.clear)
-                        .onAppear {
-                            debugLog("LogWindowView appeared for script: \(logState.scriptID)")
-                            scrollToBottom(proxy)
-                        }
-                        .onChange(of: logText) { _ in
-                            // Throttle scroll updates to prevent excessive UI work
-                            throttledScrollToBottom(proxy)
-                        }
-                    }
-                    .padding(6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.primary.opacity(0.025))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-                    )
+                VStack(spacing: 0) {
+                    LogTextView(text: $plainLogText)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .padding(6)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.primary.opacity(0.025))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                )
             }
             .padding(20)
             .glassPanel(radius: 16)
@@ -280,42 +252,26 @@ struct LogWindowView: View {
                     plainLogText = String(data: truncatedData, encoding: .utf8) ?? ""
                 }
 
-                // Move AttributedString creation to background thread to avoid UI blocking
-                DispatchQueue.global(qos: .userInitiated).async {
-                    var s = AttributedString(self.plainLogText)
-                    s.font = .system(.body, design: .monospaced)
+                // Update completed, no need for AttributedString processing
+                let duration = Date().timeIntervalSince(startTime)
+                debugLog(
+                    "Log truncation and update completed in \(String(format: "%.3f", duration))s"
+                )
+                isProcessingBatch = false
 
-                    DispatchQueue.main.async {
-                        self.logText = s
-                        let duration = Date().timeIntervalSince(startTime)
-                        debugLog(
-                            "Log truncation and update completed in \(String(format: "%.3f", duration))s"
-                        )
-                        self.isProcessingBatch = false
-
-                        // Schedule next batch processing if there are pending chunks
-                        self.scheduleNextBatchProcessing()
-                    }
-                }
+                // Schedule next batch processing if there are pending chunks
+                scheduleNextBatchProcessing()
             } else {
                 isProcessingBatch = false
             }
         } else {
-            // Normal case: batch AttributedString operations to reduce UI blocking
-            DispatchQueue.global(qos: .userInitiated).async {
-                var s = AttributedString(combinedChunk)
-                s.font = .system(.body, design: .monospaced)
+            // Normal case: text already appended, just finish processing
+            let duration = Date().timeIntervalSince(startTime)
+            debugLog("Batched log append completed in \(String(format: "%.3f", duration))s")
+            isProcessingBatch = false
 
-                DispatchQueue.main.async {
-                    self.logText.append(s)
-                    let duration = Date().timeIntervalSince(startTime)
-                    debugLog("Batched log append completed in \(String(format: "%.3f", duration))s")
-                    self.isProcessingBatch = false
-
-                    // Schedule next batch processing if there are pending chunks
-                    self.scheduleNextBatchProcessing()
-                }
-            }
+            // Schedule next batch processing if there are pending chunks
+            scheduleNextBatchProcessing()
         }
     }
 
@@ -357,57 +313,14 @@ struct LogWindowView: View {
             DispatchQueue.main.async {
                 self.isPersistedLogTruncated = result.truncated
                 self.plainLogText = result.text
-
-                // Create AttributedString on background thread to avoid blocking UI
-                DispatchQueue.global(qos: .userInitiated).async {
-                    var s = AttributedString(result.text)
-                    s.font = .system(.body, design: .monospaced)
-
-                    DispatchQueue.main.async {
-                        self.logText = s
-                        debugLog("Persisted log UI update completed")
-                    }
-                }
+                debugLog("Persisted log UI update completed")
             }
-        }
-    }
-
-    private func scrollToBottom(_ proxy: ScrollViewProxy) {
-        // Use a debounced approach to reduce excessive scrolling during heavy output
-        DispatchQueue.main.async {
-            // Skip animation during heavy log output to reduce UI strain
-            withAnimation(nil) {
-                proxy.scrollTo(bottomAnchorID, anchor: .bottom)
-            }
-        }
-    }
-
-    private func throttledScrollToBottom(_ proxy: ScrollViewProxy) {
-        let now = Date()
-
-        // Throttle scroll updates to prevent excessive UI work during rapid log output
-        if now.timeIntervalSince(lastUpdateTime) < updateThrottle {
-            if !pendingUpdates {
-                pendingUpdates = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + updateThrottle) {
-                    if self.pendingUpdates {
-                        self.pendingUpdates = false
-                        self.lastUpdateTime = Date()
-                        self.scrollToBottom(proxy)
-                        debugLog("Throttled scroll update executed")
-                    }
-                }
-            }
-        } else {
-            lastUpdateTime = now
-            scrollToBottom(proxy)
         }
     }
 
     private func clearLogs() {
         debugLog("Clearing logs for script: \(logState.scriptID)")
         LogStore.shared.clear(projectID: logState.projectID, scriptID: logState.scriptID)
-        logText = ""
         plainLogText = ""
         isPersistedLogTruncated = false
     }
@@ -451,4 +364,68 @@ struct LogWindowView: View {
 struct LogAlertItem: Identifiable {
     let id = UUID()
     let msg: String
+}
+
+// High-performance text view using NSTextView instead of SwiftUI Text
+struct LogTextView: NSViewRepresentable {
+    @Binding var text: String
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        let textView = NSTextView()
+
+        // Configure text view for optimal performance
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textView.backgroundColor = NSColor.clear
+        textView.textColor = NSColor.labelColor
+        textView.textContainerInset = NSSize(width: 10, height: 12)
+
+        // Configure for performance
+        textView.isRichText = false
+        textView.allowsUndo = false
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticDataDetectionEnabled = false
+        textView.isAutomaticLinkDetectionEnabled = false
+
+        // Configure scroll view
+        scrollView.documentView = textView
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = false
+        scrollView.backgroundColor = NSColor.clear
+
+        // Configure text container for word wrapping
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(
+            width: scrollView.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
+
+        return scrollView
+    }
+
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        guard let textView = nsView.documentView as? NSTextView else { return }
+
+        // Only update if text actually changed to avoid unnecessary work
+        if textView.string != text {
+            let oldScrollPosition = nsView.contentView.bounds.origin
+            let wasAtBottom =
+                oldScrollPosition.y >= (nsView.documentView?.bounds.height ?? 0)
+                - nsView.contentSize.height - 10
+
+            // Update text efficiently
+            textView.string = text
+
+            // Auto-scroll to bottom if we were already at the bottom
+            if wasAtBottom {
+                DispatchQueue.main.async {
+                    textView.scrollToEndOfDocument(nil)
+                }
+            }
+        }
+    }
 }
