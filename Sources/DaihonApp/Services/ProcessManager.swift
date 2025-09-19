@@ -165,7 +165,7 @@ final class ProcessManager: ObservableObject {
 
     func restart(script: Script, in project: Project) {
         debugLog("Restarting script: \(script.id)")
-        
+
         // Stop the script if it's running
         if running[script.id] != nil {
             stop(scriptID: script.id)
