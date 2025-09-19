@@ -3,6 +3,14 @@ import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 
+#if DEBUG
+    private func debugLog(_ message: String) {
+        print("[DEBUG LogWindowView] \(message)")
+    }
+#else
+    private func debugLog(_ message: String) {}
+#endif
+
 struct LogWindowView: View {
     let logState: ScriptLogState
     @State private var logText: AttributedString = ""
@@ -15,6 +23,20 @@ struct LogWindowView: View {
     private let persistedTailLimit = 512 * 1024
     private let persistedTailLabel = ByteCountFormatter.string(
         fromByteCount: Int64(512 * 1024), countStyle: .file)
+
+    // Add memory limits for the in-memory log display
+    private let inMemoryLimit = 1024 * 1024  // 1MB limit for in-memory display
+    private let inMemoryTruncateSize = 512 * 1024  // Truncate to 512KB when limit exceeded
+
+    // Performance optimization: batch updates and debounce UI refreshes
+    @State private var pendingUpdates = false
+    @State private var lastUpdateTime = Date()
+    private let updateThrottle: TimeInterval = 0.05  // 50ms throttle
+
+    // Batch text updates to reduce AttributedString creation overhead
+    @State private var pendingTextChunks: [String] = []
+    @State private var isProcessingBatch = false
+    private let batchTimeout: TimeInterval = 0.1  // 100ms batch window
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,9 +62,13 @@ struct LogWindowView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .background(Color.clear)
-                        .onAppear { scrollToBottom(proxy) }
-                        .onChange(of: logText) { _ in
+                        .onAppear {
+                            debugLog("LogWindowView appeared for script: \(logState.scriptID)")
                             scrollToBottom(proxy)
+                        }
+                        .onChange(of: logText) { _ in
+                            // Throttle scroll updates to prevent excessive UI work
+                            throttledScrollToBottom(proxy)
                         }
                     }
                     .padding(6)
@@ -66,12 +92,17 @@ struct LogWindowView: View {
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
+            debugLog("Starting log loading and subscription for script: \(logState.scriptID)")
             loadPersisted()
             subscribe()
         }
-        .onDisappear { cancellable?.cancel() }
+        .onDisappear {
+            debugLog("LogWindowView disappearing for script: \(logState.scriptID)")
+            cancellable?.cancel()
+        }
         .onReceive(processManager.$running) { _ in
             // When the process restarts, re-subscribe to new publisher
+            debugLog("Process state changed, re-subscribing for script: \(logState.scriptID)")
             cancellable?.cancel()
             subscribe()
         }
@@ -142,7 +173,9 @@ struct LogWindowView: View {
         )
     }
 
-    private func headerButton(systemName: String, help: String, action: @escaping () -> Void) -> some View {
+    private func headerButton(systemName: String, help: String, action: @escaping () -> Void)
+        -> some View
+    {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 14, weight: .semibold))
@@ -161,12 +194,116 @@ struct LogWindowView: View {
     }
 
     func subscribe() {
+        debugLog("Setting up log subscription for script: \(logState.scriptID)")
         if let pub = ProcessManager.shared.logsPublisher(for: logState.scriptID) {
-            cancellable = pub.receive(on: DispatchQueue.main).sink { chunk in
-                plainLogText.append(chunk)
-                var s = AttributedString(chunk)
+            cancellable =
+                pub
+                .receive(on: DispatchQueue.main)
+                .sink { chunk in
+                    debugLog("Received log chunk of \(chunk.count) characters")
+                    self.appendLogChunk(chunk)
+                }
+        } else {
+            debugLog("No publisher available for script: \(logState.scriptID)")
+        }
+    }
+
+    private func appendLogChunk(_ chunk: String) {
+        debugLog("Queuing chunk: \(chunk.count) chars for batched processing")
+
+        // Add to batch queue
+        pendingTextChunks.append(chunk)
+
+        // Process batch if not already processing
+        if !isProcessingBatch {
+            isProcessingBatch = true
+
+            // Wait briefly to accumulate more chunks, then process the batch
+            DispatchQueue.main.asyncAfter(deadline: .now() + batchTimeout) {
+                self.processPendingChunks()
+            }
+        }
+    }
+
+    private func processPendingChunks() {
+        guard !pendingTextChunks.isEmpty else {
+            isProcessingBatch = false
+            return
+        }
+
+        let startTime = Date()
+        let chunksToProcess = pendingTextChunks
+        pendingTextChunks.removeAll()
+
+        let combinedChunk = chunksToProcess.joined()
+        debugLog(
+            "Processing batch of \(chunksToProcess.count) chunks, \(combinedChunk.count) total chars"
+        )
+
+        plainLogText.append(combinedChunk)
+
+        // Check if we've exceeded the in-memory limit
+        if plainLogText.utf8.count > inMemoryLimit {
+            debugLog("Memory limit exceeded, truncating log")
+            // Truncate to keep only the most recent content
+            let targetSize = inMemoryTruncateSize
+            let data = plainLogText.data(using: .utf8) ?? Data()
+
+            if data.count > targetSize {
+                let startIndex = data.count - targetSize
+                let truncatedData = data.suffix(from: startIndex)
+
+                // Find the first newline to avoid cutting mid-line
+                if let newlineIndex = truncatedData.firstIndex(of: UInt8(ascii: "\n")) {
+                    let fromNewline = truncatedData.suffix(from: newlineIndex + 1)
+                    plainLogText = String(data: fromNewline, encoding: .utf8) ?? ""
+                } else {
+                    plainLogText = String(data: truncatedData, encoding: .utf8) ?? ""
+                }
+
+                // Move AttributedString creation to background thread to avoid UI blocking
+                DispatchQueue.global(qos: .userInitiated).async {
+                    var s = AttributedString(self.plainLogText)
+                    s.font = .system(.body, design: .monospaced)
+
+                    DispatchQueue.main.async {
+                        self.logText = s
+                        let duration = Date().timeIntervalSince(startTime)
+                        debugLog(
+                            "Log truncation and update completed in \(String(format: "%.3f", duration))s"
+                        )
+                        self.isProcessingBatch = false
+
+                        // Process any new chunks that arrived while we were working
+                        if !self.pendingTextChunks.isEmpty {
+                            DispatchQueue.main.async {
+                                self.processPendingChunks()
+                            }
+                        }
+                    }
+                }
+            } else {
+                isProcessingBatch = false
+            }
+        } else {
+            // Normal case: batch AttributedString operations to reduce UI blocking
+            DispatchQueue.global(qos: .userInitiated).async {
+                var s = AttributedString(combinedChunk)
                 s.font = .system(.body, design: .monospaced)
-                logText.append(s)
+
+                DispatchQueue.main.async {
+                    self.logText.append(s)
+                    let duration = Date().timeIntervalSince(startTime)
+                    debugLog("Batched log append completed in \(String(format: "%.3f", duration))s")
+                    self.isProcessingBatch = false
+
+                    // Process any new chunks that arrived while we were working
+                    if !self.pendingTextChunks.isEmpty {
+                        DispatchQueue.main.async {
+                            self.processPendingChunks()
+                        }
+                    }
+                }
             }
         }
     }
@@ -174,33 +311,73 @@ struct LogWindowView: View {
     private func loadPersisted() {
         let projectID = logState.projectID
         let scriptID = logState.scriptID
-        let limit = persistedTailLimit
+        let limit = min(persistedTailLimit, inMemoryLimit)  // Use smaller of the two limits
         isPersistedLogTruncated = false
+
+        debugLog("Loading persisted log for script: \(scriptID), limit: \(limit) bytes")
+
         DispatchQueue.global(qos: .userInitiated).async {
+            let startTime = Date()
             let result = LogStore.shared.readTail(
                 projectID: projectID, scriptID: scriptID, maxBytes: limit)
+
+            let duration = Date().timeIntervalSince(startTime)
+            debugLog(
+                "Persisted log loaded in \(String(format: "%.3f", duration))s, \(result.text.count) chars, truncated: \(result.truncated)"
+            )
+
             DispatchQueue.main.async {
                 self.isPersistedLogTruncated = result.truncated
                 self.plainLogText = result.text
-                var s = AttributedString(result.text)
-                s.font = .system(.body, design: .monospaced)
-                self.logText = s
+
+                // Create AttributedString on background thread to avoid blocking UI
+                DispatchQueue.global(qos: .userInitiated).async {
+                    var s = AttributedString(result.text)
+                    s.font = .system(.body, design: .monospaced)
+
+                    DispatchQueue.main.async {
+                        self.logText = s
+                        debugLog("Persisted log UI update completed")
+                    }
+                }
             }
         }
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
-        // Defer to next runloop to ensure layout is updated before scrolling
+        // Use a debounced approach to reduce excessive scrolling during heavy output
         DispatchQueue.main.async {
-            // Avoid extra animations during heavy log output to reduce UI jank
-            NSAnimationContext.runAnimationGroup({ ctx in
-                ctx.duration = 0
+            // Skip animation during heavy log output to reduce UI strain
+            withAnimation(nil) {
                 proxy.scrollTo(bottomAnchorID, anchor: .bottom)
-            })
+            }
+        }
+    }
+
+    private func throttledScrollToBottom(_ proxy: ScrollViewProxy) {
+        let now = Date()
+
+        // Throttle scroll updates to prevent excessive UI work during rapid log output
+        if now.timeIntervalSince(lastUpdateTime) < updateThrottle {
+            if !pendingUpdates {
+                pendingUpdates = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + updateThrottle) {
+                    if self.pendingUpdates {
+                        self.pendingUpdates = false
+                        self.lastUpdateTime = Date()
+                        self.scrollToBottom(proxy)
+                        debugLog("Throttled scroll update executed")
+                    }
+                }
+            }
+        } else {
+            lastUpdateTime = now
+            scrollToBottom(proxy)
         }
     }
 
     private func clearLogs() {
+        debugLog("Clearing logs for script: \(logState.scriptID)")
         LogStore.shared.clear(projectID: logState.projectID, scriptID: logState.scriptID)
         logText = ""
         plainLogText = ""

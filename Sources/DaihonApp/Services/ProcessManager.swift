@@ -2,6 +2,14 @@ import Combine
 import Darwin
 import Foundation
 
+#if DEBUG
+    private func debugLog(_ message: String) {
+        print("[DEBUG ProcessManager] \(message)")
+    }
+#else
+    private func debugLog(_ message: String) {}
+#endif
+
 final class ProcessManager: ObservableObject {
     static let shared = ProcessManager()
 
@@ -46,21 +54,31 @@ final class ProcessManager: ObservableObject {
 
         outHandle.readabilityHandler = { handle in
             autoreleasepool {
+                let startTime = Date()
                 let data = handle.availableData
                 if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
                     // Persist first, then emit to subscribers
                     LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
                     subject.send(str)
+                    let duration = Date().timeIntervalSince(startTime)
+                    debugLog(
+                        "Output chunk processed in \(String(format: "%.3f", duration))s: \(data.count) bytes"
+                    )
                 }
             }
         }
 
         errHandle.readabilityHandler = { handle in
             autoreleasepool {
+                let startTime = Date()
                 let data = handle.availableData
                 if !data.isEmpty, let str = String(data: data, encoding: .utf8) {
                     LogStore.shared.append(str, projectID: project.id, scriptID: script.id)
                     subject.send(str)
+                    let duration = Date().timeIntervalSince(startTime)
+                    debugLog(
+                        "Error chunk processed in \(String(format: "%.3f", duration))s: \(data.count) bytes"
+                    )
                 }
             }
         }
@@ -122,13 +140,21 @@ final class ProcessManager: ObservableObject {
 
     func logsPublisher(for scriptID: UUID) -> AnyPublisher<String, Never>? {
         // Only expose a publisher when running to preserve existing isRunning checks elsewhere
-        guard running[scriptID] != nil else { return nil }
+        let isRunning = running[scriptID] != nil
+        debugLog("Publisher requested for script \(scriptID), running: \(isRunning)")
+
+        guard isRunning else { return nil }
+
         // Batch bursts of output to reduce UI updates while preserving content ordering
         return subject(for: scriptID)
             .collect(
                 .byTimeOrCount(DispatchQueue.global(qos: .userInitiated), .milliseconds(80), 200)
             )
-            .map { $0.joined() }
+            .map { chunks in
+                let result = chunks.joined()
+                debugLog("Batched \(chunks.count) chunks into \(result.count) characters")
+                return result
+            }
             .eraseToAnyPublisher()
     }
 

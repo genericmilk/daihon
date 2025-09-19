@@ -1,5 +1,13 @@
 import Foundation
 
+#if DEBUG
+    private func debugLog(_ message: String) {
+        print("[DEBUG LogStore] \(message)")
+    }
+#else
+    private func debugLog(_ message: String) {}
+#endif
+
 final class LogStore {
     static let shared = LogStore()
 
@@ -11,7 +19,9 @@ final class LogStore {
     // MARK: - Public API
     func append(_ text: String, projectID: UUID, scriptID: UUID) {
         let url = logURL(projectID: projectID, scriptID: scriptID)
+        debugLog("Appending \(text.count) chars to log for script: \(scriptID)")
         queue.async {
+            let startTime = Date()
             self.ensureParentDirectory(for: url)
             if let data = text.data(using: .utf8) {
                 if self.fm.fileExists(atPath: url.path) {
@@ -20,13 +30,19 @@ final class LogStore {
                         defer { try? handle.close() }
                         try handle.seekToEnd()
                         try handle.write(contentsOf: data)
+                        let duration = Date().timeIntervalSince(startTime)
+                        debugLog("Append completed in \(String(format: "%.3f", duration))s")
                     } catch {
+                        debugLog("Write error: \(error)")
                         // Ignore write errors for now to avoid UI disruption
                     }
                 } else {
                     do {
                         try data.write(to: url)
+                        let duration = Date().timeIntervalSince(startTime)
+                        debugLog("New file write completed in \(String(format: "%.3f", duration))s")
                     } catch {
+                        debugLog("New file write error: \(error)")
                         // Ignore write errors for now
                     }
                 }
@@ -39,17 +55,29 @@ final class LogStore {
         return (try? String(contentsOf: url, encoding: .utf8)) ?? ""
     }
 
-    func readTail(projectID: UUID, scriptID: UUID, maxBytes: Int) -> (text: String, truncated: Bool) {
+    func readTail(projectID: UUID, scriptID: UUID, maxBytes: Int) -> (text: String, truncated: Bool)
+    {
         guard maxBytes > 0 else { return ("", false) }
         let url = logURL(projectID: projectID, scriptID: scriptID)
-        guard fm.fileExists(atPath: url.path) else { return ("", false) }
+        guard fm.fileExists(atPath: url.path) else {
+            debugLog("Log file does not exist for script: \(scriptID)")
+            return ("", false)
+        }
+
+        let startTime = Date()
+        debugLog("Reading tail of \(maxBytes) bytes for script: \(scriptID)")
 
         do {
             let attrs = try fm.attributesOfItem(atPath: url.path)
             if let sizeNumber = attrs[.size] as? NSNumber {
                 let fileSize = sizeNumber.intValue
+                debugLog("Log file size: \(fileSize) bytes")
+
                 if fileSize <= maxBytes {
-                    return (read(projectID: projectID, scriptID: scriptID), false)
+                    let result = read(projectID: projectID, scriptID: scriptID)
+                    let duration = Date().timeIntervalSince(startTime)
+                    debugLog("Full file read completed in \(String(format: "%.3f", duration))s")
+                    return (result, false)
                 }
 
                 let handle = try FileHandle(forReadingFrom: url)
@@ -65,9 +93,14 @@ final class LogStore {
                 }
 
                 let text = String(decoding: data, as: UTF8.self)
+                let duration = Date().timeIntervalSince(startTime)
+                debugLog(
+                    "Tail read completed in \(String(format: "%.3f", duration))s, returned \(text.count) chars"
+                )
                 return (text, true)
             }
         } catch {
+            debugLog("Read error: \(error)")
             // Intentionally fall through to return default below
         }
 
