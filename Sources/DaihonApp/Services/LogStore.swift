@@ -1,8 +1,16 @@
 import Foundation
 
 #if DEBUG
+    private var debugLogCount = 0
+    private let maxDebugLogs = 200  // Limit debug logs for LogStore
+
     private func debugLog(_ message: String) {
-        print("[DEBUG LogStore] \(message)")
+        debugLogCount += 1
+        if debugLogCount <= maxDebugLogs {
+            print("[DEBUG LogStore] \(message)")
+        } else if debugLogCount == maxDebugLogs + 1 {
+            print("[DEBUG LogStore] Debug logging limit reached, suppressing further logs")
+        }
     }
 #else
     private func debugLog(_ message: String) {}

@@ -3,8 +3,16 @@ import Darwin
 import Foundation
 
 #if DEBUG
+    private var debugLogCount = 0
+    private let maxDebugLogs = 500  // Limit debug logs for ProcessManager
+
     private func debugLog(_ message: String) {
-        print("[DEBUG ProcessManager] \(message)")
+        debugLogCount += 1
+        if debugLogCount <= maxDebugLogs {
+            print("[DEBUG ProcessManager] \(message)")
+        } else if debugLogCount == maxDebugLogs + 1 {
+            print("[DEBUG ProcessManager] Debug logging limit reached, suppressing further logs")
+        }
     }
 #else
     private func debugLog(_ message: String) {}

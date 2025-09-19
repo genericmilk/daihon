@@ -4,8 +4,16 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 #if DEBUG
+    private var debugLogCount = 0
+    private let maxDebugLogs = 1000  // Limit debug logs to prevent spam
+
     private func debugLog(_ message: String) {
-        print("[DEBUG LogWindowView] \(message)")
+        debugLogCount += 1
+        if debugLogCount <= maxDebugLogs {
+            print("[DEBUG LogWindowView] \(message)")
+        } else if debugLogCount == maxDebugLogs + 1 {
+            print("[DEBUG LogWindowView] Debug logging limit reached, suppressing further logs")
+        }
     }
 #else
     private func debugLog(_ message: String) {}
@@ -37,6 +45,7 @@ struct LogWindowView: View {
     @State private var pendingTextChunks: [String] = []
     @State private var isProcessingBatch = false
     private let batchTimeout: TimeInterval = 0.1  // 100ms batch window
+    private let maxBatchSize = 50  // Maximum chunks to process in one batch
 
     var body: some View {
         VStack(spacing: 0) {
@@ -214,6 +223,16 @@ struct LogWindowView: View {
         // Add to batch queue
         pendingTextChunks.append(chunk)
 
+        // Limit batch size to prevent excessive memory usage
+        if pendingTextChunks.count > maxBatchSize {
+            debugLog("Batch size limit reached, forcing immediate processing")
+            if !isProcessingBatch {
+                isProcessingBatch = true
+                processPendingChunks()
+            }
+            return
+        }
+
         // Process batch if not already processing
         if !isProcessingBatch {
             isProcessingBatch = true
@@ -274,12 +293,8 @@ struct LogWindowView: View {
                         )
                         self.isProcessingBatch = false
 
-                        // Process any new chunks that arrived while we were working
-                        if !self.pendingTextChunks.isEmpty {
-                            DispatchQueue.main.async {
-                                self.processPendingChunks()
-                            }
-                        }
+                        // Schedule next batch processing if there are pending chunks
+                        self.scheduleNextBatchProcessing()
                     }
                 }
             } else {
@@ -297,12 +312,25 @@ struct LogWindowView: View {
                     debugLog("Batched log append completed in \(String(format: "%.3f", duration))s")
                     self.isProcessingBatch = false
 
-                    // Process any new chunks that arrived while we were working
-                    if !self.pendingTextChunks.isEmpty {
-                        DispatchQueue.main.async {
-                            self.processPendingChunks()
-                        }
-                    }
+                    // Schedule next batch processing if there are pending chunks
+                    self.scheduleNextBatchProcessing()
+                }
+            }
+        }
+    }
+
+    private func scheduleNextBatchProcessing() {
+        // Only schedule if there are pending chunks and we're not already processing
+        guard !pendingTextChunks.isEmpty && !isProcessingBatch else { return }
+
+        debugLog("Scheduling next batch processing - \(pendingTextChunks.count) chunks pending")
+
+        // Use a small delay to prevent infinite loops and reduce CPU usage
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+            if !self.isProcessingBatch && !self.pendingTextChunks.isEmpty {
+                self.isProcessingBatch = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + self.batchTimeout) {
+                    self.processPendingChunks()
                 }
             }
         }
