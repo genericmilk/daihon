@@ -213,9 +213,115 @@ cat > "$CONTENTS_DIR/Info.plist" <<EOF
 EOF
 
 if [[ "$CONFIG" == "release" ]]; then
+  echo "==> Creating release DMG: Daihon.dmg"
+  
+  # Create temporary directory for DMG contents
+  DMG_TEMP_DIR=$(mktemp -d)
+  DMG_NAME="Daihon"
+  DMG_FILE="${DMG_NAME}.dmg"
+  
+  # Clean up existing DMG
+  if [[ -f "$DMG_FILE" ]]; then
+    echo "==> Removing existing $DMG_FILE"
+    rm -f "$DMG_FILE"
+  fi
+  
+  # Copy app to temp directory
+  cp -R "$APP_DIR" "$DMG_TEMP_DIR/"
+  
+  # Create Applications symlink
+  ln -s /Applications "$DMG_TEMP_DIR/Applications"
+  
+  # Create temporary DMG
+  TEMP_DMG="${DMG_NAME}_temp.dmg"
+  hdiutil create -srcfolder "$DMG_TEMP_DIR" -volname "$DMG_NAME" -fs HFS+ \
+    -format UDRW -size 150m "$TEMP_DMG"
+  
+  # Mount the temporary DMG
+  echo "==> Mounting temporary DMG for configuration"
+  MOUNT_OUTPUT=$(hdiutil attach -readwrite -noverify -noautoopen "$TEMP_DMG" 2>&1)
+  MOUNT_DIR=$(echo "$MOUNT_OUTPUT" | grep -E '/dev/disk[0-9]+s[0-9]+' | tail -1 | awk '{print $3}')
+  
+  if [[ -z "$MOUNT_DIR" ]]; then
+    echo "Error: Failed to mount temporary DMG"
+    echo "Mount output: $MOUNT_OUTPUT"
+    rm -f "$TEMP_DMG"
+    rm -rf "$DMG_TEMP_DIR"
+    exit 1
+  fi
+  
+  echo "==> DMG mounted at: $MOUNT_DIR"
+  
+  echo "==> Configuring DMG layout"
+  
+  # Set background image
+  if [[ -f "icon-res/dmg.png" ]]; then
+    mkdir -p "$MOUNT_DIR/.background"
+    cp "icon-res/dmg.png" "$MOUNT_DIR/.background/background.png"
+    echo "==> Background image copied to DMG"
+  else
+    echo "Warning: Background image not found at icon-res/dmg.png"
+  fi
+  
+  # Configure Finder view settings using AppleScript
+  echo "==> Applying DMG layout and background"
+  osascript <<EOF
+tell application "Finder"
+    tell disk "$DMG_NAME"
+        open
+        set current view of container window to icon view
+        set toolbar visible of container window to false
+        set statusbar visible of container window to false
+        set the bounds of container window to {100, 100, 1124, 1124}
+        set theViewOptions to the icon view options of container window
+        set arrangement of theViewOptions to not arranged
+        set icon size of theViewOptions to 256
+        
+        -- Set background image
+        set background picture of theViewOptions to file ".background:background.png"
+        
+        -- Wait a moment for the view to update
+        delay 1
+        
+        -- Position items according to coordinates
+        set position of item "Daihon.app" of container window to {280, 512}
+        set position of item "Applications" of container window to {748, 512}
+        
+        -- Update and close
+        update without registering applications
+        delay 2
+        close
+    end tell
+end tell
+EOF
+  
+  # Set custom icon for the volume (using app icon)
+  if [[ -f "$MOUNT_DIR/Daihon.app/Contents/Resources/AppIcon.icns" ]]; then
+    cp "$MOUNT_DIR/Daihon.app/Contents/Resources/AppIcon.icns" "$MOUNT_DIR/.VolumeIcon.icns"
+    SetFile -c icnC "$MOUNT_DIR/.VolumeIcon.icns" 2>/dev/null || true
+    SetFile -a C "$MOUNT_DIR" 2>/dev/null || true
+  fi
+  
+  # Hide background folder
+  SetFile -a V "$MOUNT_DIR/.background" 2>/dev/null || true
+  
+  # Sync and unmount
+  sync
+  hdiutil detach "$MOUNT_DIR"
+  
+  # Convert to compressed read-only DMG
+  hdiutil convert "$TEMP_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_FILE"
+  
+  # Clean up
+  rm -f "$TEMP_DMG"
+  rm -rf "$DMG_TEMP_DIR"
+  
+  echo "==> Release build complete: $DMG_FILE created"
+  
+  # Also create zip for compatibility
   echo "==> Creating release zip: Daihon.zip"
   zip -r "Daihon.zip" "$APP_DIR" >/dev/null 2>&1
-  echo "==> Release build complete: Daihon.zip created"
+  echo "==> Release zip created: Daihon.zip"
 elif [[ "$RUN" -eq 1 ]]; then
   echo "==> Running Daihon.app (configuration: $CONFIG)"
   # exec replaces the shell so Ctrl-C stops the app and exits the script
