@@ -75,11 +75,48 @@ enum PackageManager: String, Codable, CaseIterable, Identifiable {
             return "bun run \(script)"
         }
     }
+
+    /// Build the shell command with custom binary path if provided
+    func commandToRun(script: String, customPath: String = "") -> String {
+        let binaryName = displayName
+        let fullPath = customPath.isEmpty ? binaryName : customPath
+
+        switch self {
+        case .npm:
+            return "\(fullPath) run \(script)"
+        case .npx:
+            return "\(fullPath) \(script)"
+        case .yarn:
+            return "\(fullPath) run \(script)"
+        case .pnpm:
+            return "\(fullPath) run \(script)"
+        case .bun:
+            return "\(fullPath) run \(script)"
+        }
+    }
 }
 
 struct Preferences: Codable, Equatable {
     var showNotifications: Bool = true
     var packageManager: PackageManager = .npm
+    var npmBinaryPath: String = ""
+    var yarnBinaryPath: String = ""
+    var pnpmBinaryPath: String = ""
+    var bunBinaryPath: String = ""
+
+    /// Get the custom binary path for a package manager
+    func customBinaryPath(for packageManager: PackageManager) -> String {
+        switch packageManager {
+        case .npm, .npx:
+            return npmBinaryPath
+        case .yarn:
+            return yarnBinaryPath
+        case .pnpm:
+            return pnpmBinaryPath
+        case .bun:
+            return bunBinaryPath
+        }
+    }
 }
 
 final class AppState: ObservableObject {

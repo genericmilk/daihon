@@ -214,7 +214,28 @@ EOF
 
 if [[ "$CONFIG" == "release" ]]; then
   echo "==> Creating release DMG: Daihon.dmg"
-  
+
+  DMG_WINDOW_BASE_SIZE=1024
+  DMG_WINDOW_TARGET_SIZE=800
+  DMG_WINDOW_LEFT=100
+  DMG_WINDOW_TOP=100
+  DMG_WINDOW_RIGHT=$((DMG_WINDOW_LEFT + DMG_WINDOW_TARGET_SIZE))
+  DMG_WINDOW_BOTTOM=$((DMG_WINDOW_TOP + DMG_WINDOW_TARGET_SIZE))
+  DMG_ICON_BASE_SIZE=256
+  DMG_ICON_TARGET_SIZE=$((DMG_ICON_BASE_SIZE / 2))
+  DMG_POSITION_SCALE_NUM=$DMG_WINDOW_TARGET_SIZE
+  DMG_POSITION_SCALE_DEN=$DMG_WINDOW_BASE_SIZE
+
+  scale_dmg_coord() {
+    local value=$1
+    echo $(( (value * DMG_POSITION_SCALE_NUM + DMG_POSITION_SCALE_DEN / 2) / DMG_POSITION_SCALE_DEN ))
+  }
+
+  DAIHON_ICON_X=$(scale_dmg_coord 280)
+  DAIHON_ICON_Y=$(scale_dmg_coord 512)
+  APPLICATIONS_ICON_X=$(scale_dmg_coord 748)
+  APPLICATIONS_ICON_Y=$(scale_dmg_coord 512)
+
   # Create temporary directory for DMG contents
   DMG_TEMP_DIR=$(mktemp -d)
   DMG_NAME="Daihon"
@@ -258,6 +279,9 @@ if [[ "$CONFIG" == "release" ]]; then
   if [[ -f "icon-res/dmg.png" ]]; then
     mkdir -p "$MOUNT_DIR/.background"
     cp "icon-res/dmg.png" "$MOUNT_DIR/.background/background.png"
+    if command -v sips >/dev/null 2>&1; then
+      sips -Z "$DMG_WINDOW_TARGET_SIZE" "$MOUNT_DIR/.background/background.png" >/dev/null || true
+    fi
     echo "==> Background image copied to DMG"
   else
     echo "Warning: Background image not found at icon-res/dmg.png"
@@ -272,10 +296,10 @@ tell application "Finder"
         set current view of container window to icon view
         set toolbar visible of container window to false
         set statusbar visible of container window to false
-        set the bounds of container window to {100, 100, 1124, 1124}
+        set the bounds of container window to {$DMG_WINDOW_LEFT, $DMG_WINDOW_TOP, $DMG_WINDOW_RIGHT, $DMG_WINDOW_BOTTOM}
         set theViewOptions to the icon view options of container window
         set arrangement of theViewOptions to not arranged
-        set icon size of theViewOptions to 256
+        set icon size of theViewOptions to $DMG_ICON_TARGET_SIZE
         
         -- Set background image
         set background picture of theViewOptions to file ".background:background.png"
@@ -284,8 +308,8 @@ tell application "Finder"
         delay 1
         
         -- Position items according to coordinates
-        set position of item "Daihon.app" of container window to {280, 512}
-        set position of item "Applications" of container window to {748, 512}
+        set position of item "Daihon.app" of container window to {$DAIHON_ICON_X, $DAIHON_ICON_Y}
+        set position of item "Applications" of container window to {$APPLICATIONS_ICON_X, $APPLICATIONS_ICON_Y}
         
         -- Update and close
         update without registering applications

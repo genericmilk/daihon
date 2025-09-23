@@ -45,7 +45,9 @@ final class ProcessManager: ObservableObject {
             // Build command based on project's package manager (or global default)
             let pm = project.effectivePackageManager(
                 globalDefault: AppState.shared.preferences.packageManager)
-            let baseCmd = pm.commandToRun(script: self.escape(script.command))
+            let customPath = AppState.shared.preferences.customBinaryPath(for: pm)
+            let baseCmd = pm.commandToRun(
+                script: self.escape(script.command), customPath: customPath)
             // Keep stdout and stderr separate; we already pipe both below
             process.arguments = ["-lc", "\(baseCmd)"]
 

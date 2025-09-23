@@ -17,6 +17,10 @@ struct PreferencesView: View {
     @State private var startAtLogin: Bool = false
     @State private var showNotifications: Bool = true
     @State private var selectedManager: PackageManager = .npm
+    @State private var npmPath: String = ""
+    @State private var yarnPath: String = ""
+    @State private var pnpmPath: String = ""
+    @State private var bunPath: String = ""
     @State private var alert: String? = nil
     @State private var tab: PrefTab = .general
 
@@ -48,6 +52,10 @@ struct PreferencesView: View {
             startAtLogin = LoginItemManager.shared.isEnabled
             showNotifications = state.preferences.showNotifications
             selectedManager = state.preferences.packageManager
+            npmPath = state.preferences.npmBinaryPath
+            yarnPath = state.preferences.yarnBinaryPath
+            pnpmPath = state.preferences.pnpmBinaryPath
+            bunPath = state.preferences.bunBinaryPath
         }
         .onChange(of: showNotifications) { value in
             state.preferences.showNotifications = value
@@ -55,6 +63,22 @@ struct PreferencesView: View {
         }
         .onChange(of: selectedManager) { value in
             state.preferences.packageManager = value
+            state.savePreferences()
+        }
+        .onChange(of: npmPath) { value in
+            state.preferences.npmBinaryPath = value
+            state.savePreferences()
+        }
+        .onChange(of: yarnPath) { value in
+            state.preferences.yarnBinaryPath = value
+            state.savePreferences()
+        }
+        .onChange(of: pnpmPath) { value in
+            state.preferences.pnpmBinaryPath = value
+            state.savePreferences()
+        }
+        .onChange(of: bunPath) { value in
+            state.preferences.bunBinaryPath = value
             state.savePreferences()
         }
         .background {
@@ -280,6 +304,30 @@ struct PreferencesView: View {
                 .padding(.vertical, 6)
                 .padding(.leading, 4)
             }
+
+            GroupBox(label: sectionHeader("Custom Binary Paths")) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(
+                        "If package managers are not found in your PATH, specify their full paths here. Leave empty to use system PATH."
+                    )
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        binaryPathField(
+                            title: "npm", binding: $npmPath, placeholder: "/usr/local/bin/npm")
+                        binaryPathField(
+                            title: "yarn", binding: $yarnPath, placeholder: "/usr/local/bin/yarn")
+                        binaryPathField(
+                            title: "pnpm", binding: $pnpmPath, placeholder: "/usr/local/bin/pnpm")
+                        binaryPathField(
+                            title: "bun", binding: $bunPath, placeholder: "/usr/local/bin/bun")
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 6)
+                .padding(.leading, 4)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
@@ -332,4 +380,24 @@ private func sectionHeader(_ title: String) -> some View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.leading, 4)
         .padding(.bottom, 10)
+}
+
+extension PreferencesView {
+    @ViewBuilder
+    private func binaryPathField(title: String, binding: Binding<String>, placeholder: String)
+        -> some View
+    {
+        HStack {
+            Text(title)
+                .font(.footnote)
+                .fontWeight(.medium)
+                .frame(width: 50, alignment: .leading)
+
+            TextField("", text: binding)
+                .textFieldStyle(.roundedBorder)
+                .font(.footnote)
+                .help(placeholder)
+                .frame(maxWidth: .infinity)
+        }
+    }
 }
