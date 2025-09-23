@@ -29,8 +29,8 @@
 ### Option 1: Download from Releases (Recommended)
 
 1. Go to the [Releases page](https://github.com/genericmilk/daihon/releases)
-2. Download the latest `Daihon.zip` file
-3. Extract the zip file
+2. Download the latest `Daihon.dmg` file
+3. Mount the dmg image
 4. Move `Daihon.app` to your Applications folder
 5. **Important**: Run the following command to whitelist the app (required for unsigned apps):
    ```bash
