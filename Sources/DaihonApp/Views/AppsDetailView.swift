@@ -14,22 +14,22 @@ struct AppsDetailView: View {
     }
     
     private var emptyStateView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             Image(systemName: "folder.fill")
-                .font(.system(size: 64, weight: .thin))
+                .font(.system(size: 56, weight: .thin))
                 .foregroundStyle(.tertiary)
                 .symbolRenderingMode(.hierarchical)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Text("Select a project")
-                    .font(.title2)
+                    .font(.title3)
                     .fontWeight(.medium)
 
                 Text("Choose a project from the sidebar to view its details\nand controls")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 340)
+                    .frame(maxWidth: 320)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -38,7 +38,7 @@ struct AppsDetailView: View {
     @ViewBuilder
     private func projectDetailView(_ project: Project) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 20) {
                 // Header
                 projectHeader(project)
 
@@ -51,24 +51,26 @@ struct AppsDetailView: View {
                 // Actions Section
                 actionsSection(project)
             }
-            .padding(24)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 20)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
     
     private func projectHeader(_ project: Project) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(project.name)
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                .font(.title)
+                .fontWeight(.semibold)
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: "folder")
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
 
                 Text(project.path)
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -78,7 +80,7 @@ struct AppsDetailView: View {
                     revealInFinder(project)
                 } label: {
                     Image(systemName: "arrow.forward.circle")
-                        .font(.caption)
+                        .font(.system(size: 11))
                 }
                 .buttonStyle(.plain)
                 .help("Reveal in Finder")
@@ -87,14 +89,15 @@ struct AppsDetailView: View {
     }
     
     private func projectInfoSection(_ project: Project) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             Label("Project Information", systemImage: "info.circle")
-                .font(.headline)
+                .font(.system(size: 13, weight: .semibold))
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 // Package Manager
                 HStack {
                     Text("Package Manager:")
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
 
                     Spacer()
@@ -126,10 +129,11 @@ struct AppsDetailView: View {
                             }
                         }
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 3) {
                             Text(displayPackageManager(for: project))
+                                .font(.system(size: 12))
                             Image(systemName: "chevron.down")
-                                .font(.caption2)
+                                .font(.system(size: 9))
                         }
                     }
                     .menuStyle(.borderlessButton)
@@ -141,48 +145,56 @@ struct AppsDetailView: View {
                 // Script count
                 HStack {
                     Text("Scripts:")
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
 
                     Spacer()
 
                     Text("\(project.scripts.count) available")
+                        .font(.system(size: 12))
                 }
             }
-            .padding(16)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(14)
+            .compatGlassEffectThick(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+            }
+            .shadow(color: Color.black.opacity(0.08), radius: 8, y: 2)
         }
     }
     
     private func scriptsSection(_ project: Project) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Label("Scripts", systemImage: "play.circle")
-                    .font(.headline)
+                    .font(.system(size: 13, weight: .semibold))
 
                 Spacer()
 
                 Button("Rescan") {
                     rescanScripts(for: project)
                 }
+                .font(.system(size: 12))
                 .buttonStyle(.plain)
             }
 
             if project.scripts.isEmpty {
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     Image(systemName: "doc.text.magnifyingglass")
-                        .font(.largeTitle)
+                        .font(.system(size: 36))
                         .foregroundStyle(.tertiary)
 
                     Text("No scripts found. Click 'Rescan' to import commands from package.json.")
-                        .font(.subheadline)
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                        .frame(maxWidth: 400)
+                        .frame(maxWidth: 380)
                 }
-                .padding(.vertical, 32)
+                .padding(.vertical, 24)
                 .frame(maxWidth: .infinity)
             } else {
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     ForEach(project.scripts) { script in
                         ScriptRow(script: script, project: project)
                     }
@@ -192,18 +204,24 @@ struct AppsDetailView: View {
     }
     
     private func actionsSection(_ project: Project) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             Label("Actions", systemImage: "gearshape")
-                .font(.headline)
+                .font(.system(size: 13, weight: .semibold))
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Button {
                     stopAllScripts(for: project)
                 } label: {
                     Label("Stop All Scripts", systemImage: "stop.circle")
+                        .font(.system(size: 12))
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.regularMaterial, in: Capsule())
+                        .padding(.vertical, 7)
+                        .compatGlassEffect(in: Capsule())
+                        .overlay {
+                            Capsule()
+                                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+                        }
+                        .shadow(color: .black.opacity(0.05), radius: 3, y: 1)
                 }
                 .buttonStyle(.plain)
                 .disabled(!hasRunningScripts(project))
@@ -213,9 +231,15 @@ struct AppsDetailView: View {
                     restartAllScripts(for: project)
                 } label: {
                     Label("Restart All", systemImage: "arrow.clockwise.circle")
+                        .font(.system(size: 12))
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.regularMaterial, in: Capsule())
+                        .padding(.vertical, 7)
+                        .compatGlassEffect(in: Capsule())
+                        .overlay {
+                            Capsule()
+                                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+                        }
+                        .shadow(color: .black.opacity(0.05), radius: 3, y: 1)
                 }
                 .buttonStyle(.plain)
                 .disabled(!hasRunningScripts(project))
@@ -311,24 +335,23 @@ struct ScriptRow: View {
     }
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Button {
                 toggleScript()
             } label: {
                 Image(systemName: isRunning ? "stop.circle.fill" : "play.circle.fill")
-                    .font(.title3)
+                    .font(.system(size: 18))
                     .foregroundStyle(isRunning ? .red : .accentColor)
             }
             .buttonStyle(.plain)
             .help(isRunning ? "Stop script" : "Start script")
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(script.name)
-                    .font(.body)
-                    .fontWeight(.medium)
+                    .font(.system(size: 13, weight: .medium))
 
                 Text(script.command)
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fontDesign(.monospaced)
             }
@@ -339,15 +362,16 @@ struct ScriptRow: View {
                 Button("Logs") {
                     viewLogs()
                 }
+                .font(.system(size: 11))
                 .buttonStyle(.plain)
 
                 Circle()
                     .fill(Color.green)
-                    .frame(width: 8, height: 8)
+                    .frame(width: 7, height: 7)
                     .overlay(
                         Circle()
                             .fill(Color.green)
-                            .frame(width: 8, height: 8)
+                            .frame(width: 7, height: 7)
                             .opacity(0.8)
                             .scaleEffect(isRunning ? 2 : 1)
                             .opacity(isRunning ? 0 : 1)
@@ -360,16 +384,17 @@ struct ScriptRow: View {
             }
         }
         .padding(14)
-        .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.regularMaterial)
-        }
+        .compatGlassEffectThick(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
             if isRunning {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(Color.accentColor.opacity(0.4), lineWidth: 1)
+            } else {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
             }
         }
+        .shadow(color: isRunning ? Color.accentColor.opacity(0.15) : .black.opacity(0.08), radius: 8, y: 2)
     }
     
     private func toggleScript() {

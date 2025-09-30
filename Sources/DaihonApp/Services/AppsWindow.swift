@@ -15,12 +15,13 @@ final class AppsWindowController: NSObject, NSWindowDelegate {
 
         let hosting = NSHostingController(rootView: AppsView())
         let win = NSWindow(contentViewController: hosting)
-        // Style: standard macOS window with visible title bar
+        // Style: standard window with visible titlebar
         win.title = "Apps"
         win.titleVisibility = .visible
         win.titlebarAppearsTransparent = false
-        win.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
-        win.isMovableByWindowBackground = true
+        win.styleMask = [.titled, .closable, .resizable, .miniaturizable]
+        win.isMovableByWindowBackground = false
+        win.toolbarStyle = .automatic
         // Disable full screen behavior and zoom-to-fullscreen
         win.collectionBehavior.remove([
             .fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling,

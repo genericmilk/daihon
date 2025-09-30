@@ -9,39 +9,43 @@ struct AppsSidebarView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Search field
-            HStack(spacing: 8) {
+            // Search field with liquid glass effect
+            HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
 
                 TextField("Search", text: $searchText)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(.regularMaterial, in: Capsule())
-            .padding(.horizontal, 12)
-            .padding(.top, 12)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .compatGlassEffect(in: Capsule())
+            .overlay {
+                Capsule()
+                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+            }
+            .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+            .padding(.horizontal, 8)
+            .padding(.top, 8)
             .padding(.bottom, 8)
-            
+
             // Projects list
             ScrollView {
-                VStack(spacing: 4) {
+                VStack(spacing: 0) {
                     ForEach(filteredItems, id: \.id) { item in
                         sidebarItem(item, level: 0)
                     }
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 8)
+                .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             Divider()
 
             // Bottom toolbar
-            HStack(spacing: 4) {
+            HStack(spacing: 0) {
                 Menu {
                     Button("Add Project...") {
                         addSingleProject()
@@ -58,8 +62,8 @@ struct AppsSidebarView: View {
                     }
                 } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 13))
-                        .frame(width: 22, height: 22)
+                        .font(.system(size: 12))
+                        .frame(width: 20, height: 20)
                         .contentShape(Rectangle())
                 }
                 .menuStyle(.borderlessButton)
@@ -68,8 +72,9 @@ struct AppsSidebarView: View {
 
                 Spacer()
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .frame(height: 22)
         }
         .frame(width: 240)
     }
@@ -255,35 +260,36 @@ struct ProjectRowView: View {
     }
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Image(systemName: "folder.fill")
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundColor(isSelected ? .white : .secondary)
                 .symbolRenderingMode(.hierarchical)
+                .frame(width: 16)
 
             Text(project.name)
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundColor(isSelected ? .white : .primary)
                 .lineLimit(1)
 
-            Spacer()
+            Spacer(minLength: 4)
 
             if hasRunningScripts {
                 Circle()
                     .fill(Color.green)
-                    .frame(width: 6, height: 6)
+                    .frame(width: 5, height: 5)
             }
         }
-        .padding(.vertical, 5)
-        .padding(.horizontal, 10)
+        .padding(.vertical, 3)
+        .padding(.horizontal, 8)
         .padding(.leading, CGFloat(level * 16))
         .background {
             if isSelected {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(Color.accentColor)
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 }
 
@@ -294,36 +300,37 @@ struct DirectoryRowView: View {
     let onToggle: () -> Void
     
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 10, weight: .medium))
                 .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                .frame(width: 14, height: 14)
+                .frame(width: 12, height: 12)
                 .foregroundColor(.secondary)
 
             Image(systemName: isExpanded ? "folder.fill" : "folder.fill")
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundColor(.secondary)
                 .symbolRenderingMode(.hierarchical)
+                .frame(width: 16)
 
             Text(directory.name)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
 
-            Spacer()
+            Spacer(minLength: 4)
 
             Text("\(directory.children.count)")
-                .font(.system(size: 11))
+                .font(.system(size: 10))
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1)
                 .background(
                     Capsule()
                         .fill(Color(NSColor.quaternaryLabelColor))
                 )
         }
-        .padding(.vertical, 5)
-        .padding(.horizontal, 10)
+        .padding(.vertical, 3)
+        .padding(.horizontal, 4)
         .padding(.leading, CGFloat(level * 16))
         .contentShape(Rectangle())
         .onTapGesture(perform: onToggle)
