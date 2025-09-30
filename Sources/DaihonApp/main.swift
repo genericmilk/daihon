@@ -39,7 +39,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         refreshMenu()
 
         // Rebuild menu when projects list or running processes change
-        AppState.shared.$projects
+        AppState.shared.$sidebarItems
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.refreshMenu() }
             .store(in: &cancellables)
@@ -199,13 +199,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private func refreshMenu() {
         let menu = NSMenu()
         let state = AppState.shared
-        if state.projects.isEmpty {
+        if state.allProjects.isEmpty {
             let item = NSMenuItem(title: "No projects configured", action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
             menu.addItem(.separator())
         } else {
-            for project in state.projects {
+            for project in state.allProjects {
                 let projectMenu = NSMenu()
                 if project.scripts.isEmpty {
                     let empty = NSMenuItem(title: "No scripts", action: nil, keyEquivalent: "")

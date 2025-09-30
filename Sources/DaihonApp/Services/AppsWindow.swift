@@ -15,26 +15,18 @@ final class AppsWindowController: NSObject, NSWindowDelegate {
 
         let hosting = NSHostingController(rootView: AppsView())
         let win = NSWindow(contentViewController: hosting)
-        // Style: no visible title bar, inset traffic lights, not full-screenable
+        // Style: standard macOS window with visible title bar
         win.title = "Apps"
-        win.titleVisibility = .hidden
-        win.titlebarAppearsTransparent = true
-        win.isOpaque = false
-        win.backgroundColor = .clear
-        win.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
-        let toolbar = NSToolbar(identifier: NSToolbar.Identifier("AppsToolbar"))
-        toolbar.showsBaselineSeparator = false
-        win.toolbar = toolbar
-        if #available(macOS 11.0, *) {
-            win.toolbarStyle = .unifiedCompact
-        }
-        win.isMovableByWindowBackground = false
+        win.titleVisibility = .visible
+        win.titlebarAppearsTransparent = false
+        win.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
+        win.isMovableByWindowBackground = true
         // Disable full screen behavior and zoom-to-fullscreen
         win.collectionBehavior.remove([
             .fullScreenPrimary, .fullScreenAuxiliary, .fullScreenAllowsTiling,
         ])
         win.standardWindowButton(.zoomButton)?.isEnabled = false
-        win.setContentSize(NSSize(width: 760, height: 520))
+        win.setContentSize(NSSize(width: 900, height: 600))
         win.center()
         win.isReleasedWhenClosed = false
         win.delegate = self
