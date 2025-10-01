@@ -14,268 +14,175 @@ struct AppsDetailView: View {
     }
     
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "folder.fill")
-                .font(.system(size: 56, weight: .thin))
+        VStack(spacing: 20) {
+            Image(systemName: "folder.badge.plus")
+                .font(.system(size: 64, weight: .thin))
                 .foregroundStyle(.tertiary)
-                .symbolRenderingMode(.hierarchical)
 
-            VStack(spacing: 6) {
-                Text("Select a project")
-                    .font(.title3)
+            VStack(spacing: 8) {
+                Text("No Project Selected")
+                    .font(.title2)
                     .fontWeight(.medium)
 
-                Text("Choose a project from the sidebar to view its details\nand controls")
+                Text("Select a project from the sidebar to view its details")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 320)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(TahoePrimaryBackground())
     }
     
-    @ViewBuilder
     private func projectDetailView(_ project: Project) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Header
-                projectHeader(project)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "folder.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(Color.accentColor)
 
-                // Project Info
-                projectInfoSection(project)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(project.name)
+                                .font(.title)
+                                .fontWeight(.semibold)
 
-                // Scripts Section
-                scriptsSection(project)
+                            HStack(spacing: 6) {
+                                Image(systemName: "location")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
 
-                // Actions Section
-                actionsSection(project)
+                                Text(project.path)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .fontDesign(.monospaced)
+
+                                Button {
+                                    revealInFinder(project)
+                                } label: {
+                                    Image(systemName: "arrow.up.right.square")
+                                        .font(.system(size: 11))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        Spacer()
+
+                        VStack(alignment: .trailing, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(hasRunningScripts(project) ? .green : .gray)
+                                    .frame(width: 8, height: 8)
+                                
+                                Text(hasRunningScripts(project) ? "Running" : "Stopped")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(hasRunningScripts(project) ? .green : .secondary)
+                            }
+                            
+                            Text("\(runningScriptsCount(project))/\(project.scripts.count) scripts")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                // Scripts
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Scripts")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Spacer()
+                        
+                        Button("Rescan") {
+                            rescanScripts(for: project)
+                        }
+                        .font(.system(size: 12))
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
+                    }
+                    
+                    if project.scripts.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.system(size: 48))
+                                .foregroundStyle(.tertiary)
+
+                            Text("No scripts found")
+                                .font(.title3)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.vertical, 32)
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        LazyVStack(spacing: 8) {
+                            ForEach(project.scripts) { script in
+                                ScriptRow(script: script, project: project)
+                            }
+                        }
+                    }
+                }
+
+                // Actions
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Actions")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                        ActionButton(
+                            title: "Stop All",
+                            icon: "stop.circle.fill",
+                            color: .red,
+                            isDisabled: !hasRunningScripts(project)
+                        ) {
+                            stopAllScripts(for: project)
+                        }
+                        
+                        ActionButton(
+                            title: "Restart All",
+                            icon: "arrow.clockwise.circle.fill",
+                            color: .orange,
+                            isDisabled: !hasRunningScripts(project)
+                        ) {
+                            restartAllScripts(for: project)
+                        }
+                        
+                        ActionButton(
+                            title: "Open Terminal",
+                            icon: "terminal.fill",
+                            color: .blue
+                        ) {
+                            openInTerminal(project)
+                        }
+                        
+                        ActionButton(
+                            title: "Show in Finder",
+                            icon: "folder.fill",
+                            color: .green
+                        ) {
+                            revealInFinder(project)
+                        }
+                    }
+                }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 20)
+            .padding(.vertical, 16)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(TahoePrimaryBackground())
     }
     
-    private func projectHeader(_ project: Project) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(project.name)
-                .font(.title)
-                .fontWeight(.semibold)
-
-            HStack(spacing: 6) {
-                Image(systemName: "folder")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-
-                Text(project.path)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .fontDesign(.monospaced)
-
-                Button {
-                    revealInFinder(project)
-                } label: {
-                    Image(systemName: "arrow.forward.circle")
-                        .font(.system(size: 11))
-                }
-                .buttonStyle(.plain)
-                .help("Reveal in Finder")
-            }
-        }
+    private func hasRunningScripts(_ project: Project) -> Bool {
+        project.scripts.contains { processManager.running[$0.id] != nil }
     }
     
-    private func projectInfoSection(_ project: Project) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Project Information", systemImage: "info.circle")
-                .font(.system(size: 13, weight: .semibold))
-
-            VStack(alignment: .leading, spacing: 10) {
-                // Package Manager
-                HStack {
-                    Text("Package Manager:")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-
-                    Spacer()
-
-                    Menu {
-                        Button {
-                            updatePackageManager(nil, for: project)
-                        } label: {
-                            HStack {
-                                Text("Global Default (\(state.preferences.packageManager.displayName))")
-                                if project.packageManager == nil {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-
-                        Divider()
-
-                        ForEach(PackageManager.allCases) { pm in
-                            Button {
-                                updatePackageManager(pm, for: project)
-                            } label: {
-                                HStack {
-                                    Text(pm.displayName)
-                                    if project.packageManager == pm {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 3) {
-                            Text(displayPackageManager(for: project))
-                                .font(.system(size: 12))
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 9))
-                        }
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                }
-
-                Divider()
-
-                // Script count
-                HStack {
-                    Text("Scripts:")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-
-                    Spacer()
-
-                    Text("\(project.scripts.count) available")
-                        .font(.system(size: 12))
-                }
-            }
-            .padding(14)
-            .compatGlassEffectThick(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
-            }
-            .shadow(color: Color.black.opacity(0.08), radius: 8, y: 2)
-        }
-    }
-    
-    private func scriptsSection(_ project: Project) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label("Scripts", systemImage: "play.circle")
-                    .font(.system(size: 13, weight: .semibold))
-
-                Spacer()
-
-                Button("Rescan") {
-                    rescanScripts(for: project)
-                }
-                .font(.system(size: 12))
-                .buttonStyle(.plain)
-            }
-
-            if project.scripts.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.system(size: 36))
-                        .foregroundStyle(.tertiary)
-
-                    Text("No scripts found. Click 'Rescan' to import commands from package.json.")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 380)
-                }
-                .padding(.vertical, 24)
-                .frame(maxWidth: .infinity)
-            } else {
-                VStack(spacing: 6) {
-                    ForEach(project.scripts) { script in
-                        ScriptRow(script: script, project: project)
-                    }
-                }
-            }
-        }
-    }
-    
-    private func actionsSection(_ project: Project) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Actions", systemImage: "gearshape")
-                .font(.system(size: 13, weight: .semibold))
-
-            HStack(spacing: 8) {
-                Button {
-                    stopAllScripts(for: project)
-                } label: {
-                    Label("Stop All Scripts", systemImage: "stop.circle")
-                        .font(.system(size: 12))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
-                        .compatGlassEffect(in: Capsule())
-                        .overlay {
-                            Capsule()
-                                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
-                        }
-                        .shadow(color: .black.opacity(0.05), radius: 3, y: 1)
-                }
-                .buttonStyle(.plain)
-                .disabled(!hasRunningScripts(project))
-                .opacity(hasRunningScripts(project) ? 1.0 : 0.5)
-
-                Button {
-                    restartAllScripts(for: project)
-                } label: {
-                    Label("Restart All", systemImage: "arrow.clockwise.circle")
-                        .font(.system(size: 12))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
-                        .compatGlassEffect(in: Capsule())
-                        .overlay {
-                            Capsule()
-                                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
-                        }
-                        .shadow(color: .black.opacity(0.05), radius: 3, y: 1)
-                }
-                .buttonStyle(.plain)
-                .disabled(!hasRunningScripts(project))
-                .opacity(hasRunningScripts(project) ? 1.0 : 0.5)
-
-                Spacer()
-            }
-        }
-    }
-    
-    private func displayPackageManager(for project: Project) -> String {
-        project.packageManager?.displayName ?? "Global Default (\(state.preferences.packageManager.displayName))"
-    }
-    
-    private func updatePackageManager(_ pm: PackageManager?, for project: Project) {
-        guard var updatedProject = state.allProjects.first(where: { $0.id == project.id }) else { return }
-        updatedProject.packageManager = pm
-        updateProject(updatedProject)
-    }
-    
-    private func updateProject(_ project: Project) {
-        func updateInItems(_ items: [SidebarItem]) -> [SidebarItem] {
-            items.map { item in
-                switch item {
-                case .project(let p):
-                    return p.id == project.id ? .project(project) : item
-                case .directory(var dir):
-                    dir.children = updateInItems(dir.children)
-                    return .directory(dir)
-                }
-            }
-        }
-        
-        state.sidebarItems = updateInItems(state.sidebarItems)
-        state.selectedProject = project
-        state.saveSidebarItems()
+    private func runningScriptsCount(_ project: Project) -> Int {
+        project.scripts.filter { processManager.running[$0.id] != nil }.count
     }
     
     private func rescanScripts(for project: Project) {
@@ -296,13 +203,41 @@ struct AppsDetailView: View {
         return scripts.keys.sorted().map { Script(name: $0, command: $0) }
     }
     
+    private func updateProject(_ project: Project) {
+        func updateInItems(_ items: [SidebarItem]) -> [SidebarItem] {
+            items.map { item in
+                switch item {
+                case .project(let p):
+                    return p.id == project.id ? .project(project) : item
+                case .directory(var dir):
+                    dir.children = updateInItems(dir.children)
+                    return .directory(dir)
+                }
+            }
+        }
+        
+        state.sidebarItems = updateInItems(state.sidebarItems)
+        state.selectedProject = project
+        state.saveSidebarItems()
+    }
+    
     private func revealInFinder(_ project: Project) {
         let url = URL(fileURLWithPath: project.path, isDirectory: true)
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
     
-    private func hasRunningScripts(_ project: Project) -> Bool {
-        project.scripts.contains { processManager.running[$0.id] != nil }
+    private func openInTerminal(_ project: Project) {
+        let script = """
+        tell application "Terminal"
+            activate
+            do script "cd '\(project.path)'"
+        end tell
+        """
+        
+        if let appleScript = NSAppleScript(source: script) {
+            var errorDict: NSDictionary?
+            appleScript.executeAndReturnError(&errorDict)
+        }
     }
     
     private func stopAllScripts(for project: Project) {
@@ -335,23 +270,22 @@ struct ScriptRow: View {
     }
     
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Button {
                 toggleScript()
             } label: {
                 Image(systemName: isRunning ? "stop.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(isRunning ? .red : .accentColor)
+                    .font(.system(size: 20))
+                    .foregroundStyle(isRunning ? .red : .green)
             }
             .buttonStyle(.plain)
-            .help(isRunning ? "Stop script" : "Start script")
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(script.name)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 14, weight: .semibold))
 
                 Text(script.command)
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fontDesign(.monospaced)
             }
@@ -362,39 +296,21 @@ struct ScriptRow: View {
                 Button("Logs") {
                     viewLogs()
                 }
-                .font(.system(size: 11))
+                .font(.system(size: 11, weight: .medium))
                 .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
 
                 Circle()
                     .fill(Color.green)
-                    .frame(width: 7, height: 7)
-                    .overlay(
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 7, height: 7)
-                            .opacity(0.8)
-                            .scaleEffect(isRunning ? 2 : 1)
-                            .opacity(isRunning ? 0 : 1)
-                            .animation(
-                                Animation.easeOut(duration: 1.5)
-                                    .repeatForever(autoreverses: false),
-                                value: isRunning
-                            )
-                    )
+                    .frame(width: 8, height: 8)
             }
         }
-        .padding(14)
+        .padding(16)
         .compatGlassEffectThick(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
-            if isRunning {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(0.4), lineWidth: 1)
-            } else {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
-            }
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(isRunning ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.1), lineWidth: 1)
         }
-        .shadow(color: isRunning ? Color.accentColor.opacity(0.15) : .black.opacity(0.08), radius: 8, y: 2)
     }
     
     private func toggleScript() {
@@ -414,5 +330,48 @@ struct ScriptRow: View {
         )
         state.activeLog = logState
         LogWindowController.shared.show(logState: logState)
+    }
+}
+
+struct ActionButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let isDisabled: Bool
+    let action: () -> Void
+    
+    init(title: String, icon: String, color: Color, isDisabled: Bool = false, action: @escaping () -> Void) {
+        self.title = title
+        self.icon = icon
+        self.color = color
+        self.isDisabled = isDisabled
+        self.action = action
+    }
+    
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 24))
+                    .foregroundStyle(isDisabled ? .secondary : color)
+
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(isDisabled ? .secondary : .primary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .compatGlassEffectThick(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(isDisabled ? Color.primary.opacity(0.05) : color.opacity(0.3), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.6 : 1.0)
     }
 }

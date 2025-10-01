@@ -1,4 +1,6 @@
 import Foundation
+import SwiftUI
+import UniformTypeIdentifiers
 
 struct Script: Identifiable, Codable, Hashable {
     let id: UUID

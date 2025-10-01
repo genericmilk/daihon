@@ -1,14 +1,15 @@
 import SwiftUI
 
 struct AppsView: View {
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
+    
     var body: some View {
-        HSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             AppsSidebarView()
-                .frame(minWidth: 200, idealWidth: 240, maxWidth: 300)
-
+                .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
+        } detail: {
             AppsDetailView()
-                .frame(minWidth: 400)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationSplitViewStyle(.balanced)
     }
 }

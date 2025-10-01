@@ -5,17 +5,37 @@ struct AppsSidebarView: View {
     @ObservedObject var state = AppState.shared
     @State private var searchText = ""
     @State private var expandedDirectories: Set<UUID> = []
-    @State private var isAddMenuShowing = false
     
     var body: some View {
         VStack(spacing: 0) {
-            // Search field with liquid glass effect
+            // Header
+            headerView
+            
+            // List
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(filteredItems, id: \.id) { item in
+                        sidebarRow(item: item, level: 0)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(TahoeSidebarBackground())
+        .navigationTitle("Projects")
+    }
+    
+    private var headerView: some View {
+        VStack(spacing: 8) {
+            // Search
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
                     .font(.system(size: 12))
 
-                TextField("Search", text: $searchText)
+                TextField("Search projects...", text: $searchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
             }
@@ -26,60 +46,42 @@ struct AppsSidebarView: View {
                 Capsule()
                     .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
             }
-            .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
-            .padding(.horizontal, 8)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-
-            // Projects list
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(filteredItems, id: \.id) { item in
-                        sidebarItem(item, level: 0)
-                    }
-                }
-                .padding(.top, 4)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Divider()
-
-            // Bottom toolbar
-            HStack(spacing: 0) {
+            
+            // Add button
+            HStack {
+                Spacer()
+                
                 Menu {
                     Button("Add Project...") {
                         addSingleProject()
                     }
-
-                    Button("Add Directory of Projects...") {
+                    Button("Add Directory...") {
                         addDirectoryOfProjects()
                     }
-
-                    Divider()
-
                     Button("New Directory") {
                         createNewDirectory()
                     }
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 12))
-                        .frame(width: 20, height: 20)
-                        .contentShape(Rectangle())
+                        .frame(width: 24, height: 24)
+                        .contentShape(Circle())
                 }
                 .menuStyle(.borderlessButton)
                 .buttonStyle(.plain)
-                .help("Add Project or Directory")
-
-                Spacer()
+                .compatGlassEffect(in: Circle())
+                .overlay {
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+                }
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
-            .frame(height: 22)
         }
-        .frame(width: 240)
+        .padding(.horizontal, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
     
-    private func sidebarItem(_ item: SidebarItem, level: Int) -> AnyView {
+    private func sidebarRow(item: SidebarItem, level: Int) -> AnyView {
         switch item {
         case .project(let project):
             return AnyView(
@@ -95,13 +97,13 @@ struct AppsSidebarView: View {
             
         case .directory(let directory):
             return AnyView(
-                VStack(spacing: 1) {
+                VStack(spacing: 0) {
                     DirectoryRowView(
                         directory: directory,
                         isExpanded: expandedDirectories.contains(directory.id),
                         level: level,
                         onToggle: {
-                            withAnimation(.easeInOut(duration: 0.15)) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
                                 if expandedDirectories.contains(directory.id) {
                                     expandedDirectories.remove(directory.id)
                                 } else {
@@ -113,7 +115,7 @@ struct AppsSidebarView: View {
                     
                     if expandedDirectories.contains(directory.id) {
                         ForEach(directory.children, id: \.id) { child in
-                            sidebarItem(child, level: level + 1)
+                            sidebarRow(item: child, level: level + 1)
                         }
                     }
                 }
@@ -142,7 +144,6 @@ struct AppsSidebarView: View {
                     var updatedDir = directory
                     updatedDir.children = filteredChildren
                     result.append(.directory(updatedDir))
-                    // Auto-expand directories when searching
                     expandedDirectories.insert(directory.id)
                 }
             }
@@ -176,7 +177,6 @@ struct AppsSidebarView: View {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.prompt = "Select Directory"
-        panel.message = "Select a directory containing multiple projects"
         
         if panel.runModal() == .OK, let url = panel.url {
             let directory = scanForProjects(at: url)
@@ -201,23 +201,15 @@ struct AppsSidebarView: View {
         guard let enumerator = FileManager.default.enumerator(
             at: url,
             includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles, .skipsPackageDescendants],
+            options: [.skipsHiddenFiles],
             errorHandler: nil
         ) else {
             return directory
         }
         
         var projects: [Project] = []
-        let maxDepth = 2 // Only scan 2 levels deep
         
         for case let fileURL as URL in enumerator {
-            let depth = fileURL.pathComponents.count - url.pathComponents.count
-            if depth > maxDepth {
-                enumerator.skipDescendants()
-                continue
-            }
-            
-            // Check if this directory contains package.json
             let packagePath = fileURL.appendingPathComponent("package.json")
             if FileManager.default.fileExists(atPath: packagePath.path) {
                 let scripts = detectScripts(at: fileURL)
@@ -228,7 +220,6 @@ struct AppsSidebarView: View {
                         scripts: scripts
                     )
                     projects.append(project)
-                    enumerator.skipDescendants()
                 }
             }
         }
@@ -260,15 +251,14 @@ struct ProjectRowView: View {
     }
     
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "folder.fill")
-                .font(.system(size: 12))
+                .font(.system(size: 13))
                 .foregroundColor(isSelected ? .white : .secondary)
-                .symbolRenderingMode(.hierarchical)
                 .frame(width: 16)
 
             Text(project.name)
-                .font(.system(size: 12))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(isSelected ? .white : .primary)
                 .lineLimit(1)
 
@@ -277,19 +267,19 @@ struct ProjectRowView: View {
             if hasRunningScripts {
                 Circle()
                     .fill(Color.green)
-                    .frame(width: 5, height: 5)
+                    .frame(width: 6, height: 6)
             }
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, 4)
         .padding(.horizontal, 8)
         .padding(.leading, CGFloat(level * 16))
         .background {
             if isSelected {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color.accentColor)
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }
 
@@ -300,37 +290,38 @@ struct DirectoryRowView: View {
     let onToggle: () -> Void
     
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             Image(systemName: "chevron.right")
                 .font(.system(size: 10, weight: .medium))
                 .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 .frame(width: 12, height: 12)
                 .foregroundColor(.secondary)
+                .animation(.easeInOut(duration: 0.2), value: isExpanded)
 
-            Image(systemName: isExpanded ? "folder.fill" : "folder.fill")
-                .font(.system(size: 12))
+            Image(systemName: isExpanded ? "folder.fill" : "folder")
+                .font(.system(size: 13))
                 .foregroundColor(.secondary)
-                .symbolRenderingMode(.hierarchical)
                 .frame(width: 16)
 
             Text(directory.name)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.primary)
                 .lineLimit(1)
 
             Spacer(minLength: 4)
 
             Text("\(directory.children.count)")
-                .font(.system(size: 10))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 1)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
                 .background(
                     Capsule()
                         .fill(Color(NSColor.quaternaryLabelColor))
                 )
         }
-        .padding(.vertical, 3)
-        .padding(.horizontal, 4)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
         .padding(.leading, CGFloat(level * 16))
         .contentShape(Rectangle())
         .onTapGesture(perform: onToggle)
