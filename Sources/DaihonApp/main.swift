@@ -53,30 +53,84 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     private func configureNotificationsIfAvailable() {
-        // Only configure notifications if we have a proper app bundle
-        // This prevents crashes when running via `swift run`
-        guard Bundle.main.bundleURL.pathExtension == "app" else {
-            print("Not running from app bundle, skipping UserNotifications setup")
-            return
+        // Check if we're running from a proper app bundle
+        let bundlePath = Bundle.main.bundleURL.path
+        let bundleExtension = Bundle.main.bundleURL.pathExtension
+        let bundleIdentifier = Bundle.main.bundleIdentifier
+        print("Bundle path: \(bundlePath)")
+        print("Bundle extension: \(bundleExtension)")
+        print("Bundle identifier: \(bundleIdentifier ?? "unknown")")
+        
+        // Only try UserNotifications if we have a proper bundle with identifier
+        if bundleIdentifier != nil && bundleExtension == "app" {
+            print("Running from app bundle, configuring UserNotifications")
+            configureUserNotifications()
+        } else {
+            print("Running from development build, using fallback notification system")
+            notificationsAuthorized = true // Enable fallback notifications
         }
-
+    }
+    
+    private func configureUserNotifications() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        center.requestAuthorization(options: [.alert, .badge, .sound]) {
-            [weak self] granted, error in
-            if let error = error { print("Notification auth error: \(error)") }
-            DispatchQueue.main.async {
-                self?.notificationsAuthorized = granted
-                print("Notifications permission granted: \(granted)")
-            }
-        }
-        // Also query current settings in case permission was decided earlier
+        
+        // First check current settings
         center.getNotificationSettings { [weak self] settings in
             DispatchQueue.main.async {
-                self?.notificationsAuthorized =
-                    (settings.authorizationStatus == .authorized
-                        || settings.authorizationStatus == .provisional)
-                print("Notification authorization status: \(settings.authorizationStatus.rawValue)")
+                print("Current notification authorization status: \(settings.authorizationStatus.rawValue)")
+                print("Alert setting: \(settings.alertSetting.rawValue)")
+                print("Sound setting: \(settings.soundSetting.rawValue)")
+                print("Badge setting: \(settings.badgeSetting.rawValue)")
+                
+                let isAuthorized = (settings.authorizationStatus == .authorized
+                    || settings.authorizationStatus == .provisional)
+                self?.notificationsAuthorized = isAuthorized
+                
+                if settings.authorizationStatus == .notDetermined {
+                    print("Requesting notification authorization...")
+                    center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+                        if let error = error { 
+                            print("Notification auth error: \(error.localizedDescription)")
+                        } else {
+                            print("Authorization request completed. Granted: \(granted)")
+                        }
+                        DispatchQueue.main.async {
+                            self?.notificationsAuthorized = granted
+                            
+                            // If granted, send a test notification to confirm it works
+                            if granted {
+                                self?.sendTestNotification()
+                            }
+                        }
+                    }
+                } else if isAuthorized {
+                    print("Already authorized, sending test notification")
+                    self?.sendTestNotification()
+                } else {
+                    print("Authorization denied. User may need to enable in System Preferences.")
+                }
+            }
+        }
+    }
+    
+    private func sendTestNotification() {
+        let center = UNUserNotificationCenter.current()
+        let testContent = UNMutableNotificationContent()
+        testContent.title = "Daihon"
+        testContent.body = "Notifications are now enabled for script alerts"
+        testContent.sound = .default
+        
+        let testRequest = UNNotificationRequest(
+            identifier: "test-notification-\(Date().timeIntervalSince1970)", 
+            content: testContent, 
+            trigger: nil
+        )
+        center.add(testRequest) { error in
+            if let error = error {
+                print("Test notification failed: \(error.localizedDescription)")
+            } else {
+                print("Test notification sent successfully")
             }
         }
     }
@@ -151,8 +205,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             print("(notifications off) \(title): \(subtitle) - \(body)")
             return
         }
-        // Method 1: UserNotifications framework (only if authorized)
-        if notificationsAuthorized {
+        
+        // Always log to console for debugging
+        print("📢 \(title): \(subtitle) - \(body)")
+
+        // Method 1: UserNotifications framework (only if available and authorized)
+        if notificationsAuthorized && Bundle.main.bundleIdentifier != nil {
             let content = UNMutableNotificationContent()
             content.title = title
             content.subtitle = subtitle
@@ -163,19 +221,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             let request = UNNotificationRequest(
                 identifier: UUID().uuidString, content: content, trigger: trigger)
             UNUserNotificationCenter.current().add(request) { error in
-                if let error = error { print("Failed to schedule notification: \(error)") }
+                if let error = error { 
+                    print("Failed to schedule notification: \(error)")
+                } else {
+                    print("UserNotification sent successfully")
+                }
             }
         } else {
-            print("(notifications not authorized) \(title): \(subtitle) - \(body)")
+            print("UserNotifications not available, using fallback methods")
         }
 
-        // Method 2: Always log to console for debugging
-        print("📢 \(title): \(subtitle) - \(body)")
-
-        // Method 3: Play system beep as audio feedback
+        // Method 2: Play system beep as audio feedback
         NSSound.beep()
 
-        // Method 4: Show a temporary banner in the menu (update menu bar button)
+        // Method 3: Show a temporary banner in the menu (update menu bar button)
         if let button = statusItem.button {
             let originalTitle = button.title
             button.title = "●"  // Show dot indicator
@@ -195,17 +254,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         // Always show notifications while app is active
         completionHandler([.banner, .list, .sound])
     }
+    
+    // Public method for ProcessManager to call
+    func showProcessNotification(title: String, subtitle: String, body: String) {
+        showNotification(title: title, subtitle: subtitle, body: body)
+    }
 
     private func refreshMenu() {
         let menu = NSMenu()
         let state = AppState.shared
+        
+        // Create Apps submenu
+        let appsMenuItem = NSMenuItem(title: "Apps", action: nil, keyEquivalent: "")
+        let appsMenu = NSMenu()
+        
         if state.allProjects.isEmpty {
             let item = NSMenuItem(title: "No projects configured", action: nil, keyEquivalent: "")
             item.isEnabled = false
-            menu.addItem(item)
-            menu.addItem(.separator())
+            appsMenu.addItem(item)
         } else {
-            for project in state.allProjects {
+            // Sort projects alphabetically by name
+            let sortedProjects = state.allProjects.sorted { $0.name < $1.name }
+            
+            for project in sortedProjects {
                 let projectMenu = NSMenu()
                 if project.scripts.isEmpty {
                     let empty = NSMenuItem(title: "No scripts", action: nil, keyEquivalent: "")
@@ -248,7 +319,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                                 systemSymbolName: "play.fill", accessibilityDescription: "Running")
                         }
 
-                        menu.setSubmenu(scriptSub, for: scriptItem)
+                        appsMenu.setSubmenu(scriptSub, for: scriptItem)
                         projectMenu.addItem(scriptItem)
                     }
                 }
@@ -264,15 +335,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                         accessibilityDescription: "Has running scripts")
                 }
 
-                menu.setSubmenu(projectMenu, for: projectItem)
-                menu.addItem(projectItem)
+                appsMenu.setSubmenu(projectMenu, for: projectItem)
+                appsMenu.addItem(projectItem)
             }
-            // Add separator after all projects
+        }
+        
+        menu.setSubmenu(appsMenu, for: appsMenuItem)
+        menu.addItem(appsMenuItem)
+        menu.addItem(.separator())
+        
+        // Check if any scripts are running to show "Stop all apps"
+        let hasAnyRunningScripts = state.allProjects.contains { project in
+            project.scripts.contains { script in
+                ProcessManager.shared.logsPublisher(for: script.id) != nil
+            }
+        }
+        
+        if hasAnyRunningScripts {
+            let stopAllItem = NSMenuItem(
+                title: "Stop all apps", action: #selector(stopAllApps), keyEquivalent: "")
+            menu.addItem(stopAllItem)
             menu.addItem(.separator())
         }
+        
         // Footer
         let manageItem = NSMenuItem(
-            title: "Apps…", action: #selector(openApps), keyEquivalent: "s")
+            title: "Manage Apps", action: #selector(openApps), keyEquivalent: "s")
         menu.addItem(manageItem)
         menu.addItem(
             withTitle: "Preferences…", action: #selector(openPreferences), keyEquivalent: ",")
@@ -289,18 +377,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let isRunning = ProcessManager.shared.logsPublisher(for: script.id) != nil
         if isRunning {
             ProcessManager.shared.stop(scriptID: script.id)
-            showNotification(
-                title: "Script Stopped",
-                subtitle: project.name,
-                body: "'\(script.name)' has been stopped"
-            )
         } else {
             ProcessManager.shared.start(script: script, in: project)
-            showNotification(
-                title: "Script Started",
-                subtitle: project.name,
-                body: "'\(script.name)' is now running"
-            )
 
             // Automatically open the execution log when starting a script
             let logState = ScriptLogState(
@@ -318,11 +396,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         else { return }
 
         ProcessManager.shared.restart(script: script, in: project)
-        showNotification(
-            title: "Script Restarted",
-            subtitle: project.name,
-            body: "'\(script.name)' has been restarted"
-        )
 
         // Automatically open the execution log when restarting a script
         let logState = ScriptLogState(
@@ -340,6 +413,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let logState = ScriptLogState(
             projectID: project.id, scriptID: script.id, title: "\(project.name) • \(script.name)")
         LogWindowController.shared.show(logState: logState)
+    }
+    
+    @objc private func stopAllApps() {
+        let state = AppState.shared
+        var stoppedCount = 0
+        
+        for project in state.allProjects {
+            for script in project.scripts {
+                if ProcessManager.shared.logsPublisher(for: script.id) != nil {
+                    ProcessManager.shared.stop(scriptID: script.id)
+                    stoppedCount += 1
+                }
+            }
+        }
+        
+        if stoppedCount > 0 {
+            showNotification(
+                title: "Apps Stopped",
+                subtitle: "\(stoppedCount) app\(stoppedCount == 1 ? "" : "s") stopped",
+                body: "All running apps have been stopped"
+            )
+        }
+        
+        refreshMenu()
     }
 }
 
@@ -361,7 +458,7 @@ extension AppDelegate {
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
-        menu.addItem(withTitle: "Apps…", action: #selector(openApps), keyEquivalent: "s")
+        menu.addItem(withTitle: "Manage Apps", action: #selector(openApps), keyEquivalent: "s")
         menu.addItem(
             withTitle: "Preferences…", action: #selector(openPreferences), keyEquivalent: ",")
         menu.addItem(.separator())

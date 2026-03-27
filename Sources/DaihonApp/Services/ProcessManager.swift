@@ -1,6 +1,8 @@
 import Combine
 import Darwin
 import Foundation
+import UserNotifications
+import AppKit
 
 #if DEBUG
     private var debugLogCount = 0
@@ -25,12 +27,24 @@ final class ProcessManager: ObservableObject {
         let process: Process
         let outputPipe: Pipe
         let errorPipe: Pipe
+        let project: Project
+        let script: Script
     }
 
     @Published private(set) var running: [UUID: RunningProcess] = [:]  // key: Script.id
     private var subjects: [UUID: PassthroughSubject<String, Never>] = [:]
 
     private init() {}
+    
+    // Delegate notification handling to AppDelegate
+    func showNotification(title: String, subtitle: String, body: String) {
+        // Find the AppDelegate instance and call its notification method
+        DispatchQueue.main.async {
+            if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
+                appDelegate.showProcessNotification(title: title, subtitle: subtitle, body: body)
+            }
+        }
+    }
 
     func start(script: Script, in project: Project) {
         guard running[script.id] == nil else { return }
@@ -112,6 +126,14 @@ final class ProcessManager: ObservableObject {
                     LogStore.shared.appendBoundary(
                         "process exited", projectID: project.id, scriptID: script.id)
                     subject.send("\n— process exited —\n")
+                    
+                    // Send notification when process actually stops
+                    self?.showNotification(
+                        title: "Script Stopped",
+                        subtitle: project.name,
+                        body: "'\(script.name)' has stopped"
+                    )
+                    
                     // Clean up handlers and mark not running
                     outHandle.readabilityHandler = nil
                     errHandle.readabilityHandler = nil
@@ -127,7 +149,15 @@ final class ProcessManager: ObservableObject {
                 // Update running processes on main thread
                 DispatchQueue.main.async {
                     self.running[script.id] = RunningProcess(
-                        process: process, outputPipe: outputPipe, errorPipe: errorPipe)
+                        process: process, outputPipe: outputPipe, errorPipe: errorPipe, 
+                        project: project, script: script)
+                    
+                    // Send notification when process actually starts
+                    self.showNotification(
+                        title: "Script Started",
+                        subtitle: project.name,
+                        body: "'\(script.name)' is now running"
+                    )
                 }
             } catch {
                 debugLog("Failed to start process for script: \(script.id), error: \(error)")
@@ -167,6 +197,13 @@ final class ProcessManager: ObservableObject {
 
     func restart(script: Script, in project: Project) {
         debugLog("Restarting script: \(script.id)")
+
+        // Send restart notification
+        showNotification(
+            title: "Script Restarting",
+            subtitle: project.name,
+            body: "'\(script.name)' is being restarted"
+        )
 
         // Stop the script if it's running
         if running[script.id] != nil {
